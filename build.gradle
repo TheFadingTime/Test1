@@ -1,0 +1,94 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.fadingtime'
+version = '1.0.0'
+
+java {
+    // Use Java 25 toolchain - allows Gradle to run on Java 21 but compile with Java 25
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+    flatDir {
+        dirs 'libs'
+    }
+}
+
+// Find the Hytale server JAR - check multiple locations
+def findHytaleServerJar() {
+    // Priority 1: libs/ directory (for local development)
+    def libsJar = file('libs/HytaleServer.jar')
+    if (libsJar.exists()) {
+        return libsJar
+    }
+
+    // Priority 2: References directory (from codegen pipeline)
+    def refsDir = file('/workspace/references/hytale-server')
+    if (refsDir.exists()) {
+        def serverJars = refsDir.listFiles()?.findAll { it.name.startsWith('HytaleServer') && it.name.endsWith('.jar') }
+        if (serverJars && !serverJars.isEmpty()) {
+            return serverJars.first()
+        }
+    }
+
+    // Priority 3: Environment variable
+    def envPath = System.getenv('HYTALE_SERVER_JAR')
+    if (envPath) {
+        def envJar = file(envPath)
+        if (envJar.exists()) {
+            return envJar
+        }
+    }
+
+    // Not found - return placeholder path (validation below will fail the build)
+    return file('libs/HytaleServer.jar')
+}
+
+def hytaleServerJar = findHytaleServerJar()
+logger.lifecycle("Using Hytale server JAR: ${hytaleServerJar.absolutePath}")
+
+// CRITICAL: Fail fast if HytaleServer.jar is missing
+// Without this, Gradle silently produces an empty JAR with no compiled classes
+if (!hytaleServerJar.exists()) {
+    throw new RuntimeException("""
+        |
+        |=== BUILD FAILED: HytaleServer.jar not found ===
+        |
+        |Searched locations:
+        |  1. libs/HytaleServer.jar
+        |  2. /workspace/references/hytale-server/
+        |  3. HYTALE_SERVER_JAR environment variable
+        |
+        |To fix:
+        |  - Ensure HYTALE_SERVER_JAR_URL is passed to the build container
+        |  - Or place HytaleServer.jar in the libs/ directory
+        |
+        """.stripMargin())
+}
+
+dependencies {
+    // Hytale server JAR - compile only (provided at runtime)
+    compileOnly files(hytaleServerJar)
+
+    // JSR-305 annotations (for @Nonnull, @Nullable)
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+}
+
+jar {
+    // Handle duplicate entries
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+        )
+    }
+
+    archiveBaseName = 'HytaleMod'
+}

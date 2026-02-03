@@ -1,0 +1,13 @@
+{
+  "Group": "com.fadingtime",
+  "Name": "Hytale Surivors",
+  "Version": "1.0.0",
+  "Description": "A Hytale mod that automatically fires three fireballs in a triangular spread every 10 seconds",
+  "Authors": [
+    {
+      "Name": "FadingTime"
+    }
+  ],
+  "Main": "com.fadingtime.hytalemod.HytaleMod",
+  "ServerVersion": ">=2026.1.0"
+}
