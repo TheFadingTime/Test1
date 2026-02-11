@@ -1,0 +1,23 @@
+@BarWidth = 520;
+@BarHeight = 26;
+@TopOffset = 40;
+
+Group #BossBar {
+  LayoutMode: Top;
+  Anchor: (Width: @BarWidth, Height: @BarHeight + 22, Top: @TopOffset);
+
+  Label #BossName {
+    Anchor: (Height: 22);
+    Style: (FontName: "Secondary", RenderBold: true, RenderUppercase: true, FontSize: 18, TextColor: #ff3b3b, HorizontalAlignment: Center);
+  }
+
+  Group #BossBarContainer {
+    Anchor: (Width: @BarWidth, Height: @BarHeight);
+    Background: "Boss/BossBarBackground.png";
+
+    ProgressBar #ProgressBar {
+      Anchor: (Width: @BarWidth - 8, Height: @BarHeight - 6, Left: 4, Top: 3);
+      BarTexturePath: "Boss/BossBarFill.png";
+    }
+  }
+}

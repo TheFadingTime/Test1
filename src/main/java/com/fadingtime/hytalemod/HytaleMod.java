@@ -1,32 +1,49 @@
 package com.fadingtime.hytalemod;
 
+import com.fadingtime.hytalemod.command.PowerUpStoreCommand;
+import com.fadingtime.hytalemod.command.ProjectileRainCommand;
+import com.fadingtime.hytalemod.command.StartWavesCommand;
+import com.fadingtime.hytalemod.component.BossWaveComponent;
+import com.fadingtime.hytalemod.component.LifeEssenceDropComponent;
+import com.fadingtime.hytalemod.component.ProjectileBounceComponent;
+import com.fadingtime.hytalemod.component.SpawnedByMobWaveComponent;
+import com.fadingtime.hytalemod.component.VampireShooterComponent;
+import com.fadingtime.hytalemod.persistence.PlayerStateStoreManager;
+import com.fadingtime.hytalemod.spawner.MobWaveSpawner;
+import com.fadingtime.hytalemod.system.BossHudSystem;
+import com.fadingtime.hytalemod.system.BossWaveDeathSystem;
+import com.fadingtime.hytalemod.system.LifeEssenceDropSystem;
+import com.fadingtime.hytalemod.system.LifeEssenceLevelSystem;
+import com.fadingtime.hytalemod.system.LifeEssencePickupSystem;
+import com.fadingtime.hytalemod.system.PlayerDamageBonusSystem;
+import com.fadingtime.hytalemod.system.ProjectileBounceOnHitSystem;
+import com.fadingtime.hytalemod.system.SignatureEnergyOnHitSystem;
+import com.fadingtime.hytalemod.system.VampireShooterAdder;
+import com.fadingtime.hytalemod.system.VampireShooterSystem;
 import com.hypixel.hytale.component.ComponentRegistryProxy;
 import com.hypixel.hytale.component.ComponentType;
+import com.hypixel.hytale.component.system.ISystem;
+import com.hypixel.hytale.server.core.command.system.AbstractCommand;
 import com.hypixel.hytale.server.core.plugin.JavaPlugin;
 import com.hypixel.hytale.server.core.plugin.JavaPluginInit;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
-
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 
-/**
- * Hytale Surivors - A Hytale server mod that automatically fires fireballs.
- *
- * This mod gives all players a passive ability that fires three fireballs
- * in a triangular spread pattern every 10 seconds.
- *
- * @author FadingTime
- * @version 1.0.0
- */
-public class HytaleMod extends JavaPlugin {
-
-    public static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger("Hytale Surivors");
+public class HytaleMod
+extends JavaPlugin {
+    public static final Logger LOGGER = Logger.getLogger("Hytale Surivors");
     private static HytaleMod INSTANCE;
     private ComponentType<EntityStore, VampireShooterComponent> vampireShooterComponentType;
     private ComponentType<EntityStore, SpawnedByMobWaveComponent> mobWaveMarkerComponentType;
     private ComponentType<EntityStore, BossWaveComponent> bossWaveComponentType;
+    private ComponentType<EntityStore, LifeEssenceDropComponent> lifeEssenceDropComponentType;
+    private ComponentType<EntityStore, ProjectileBounceComponent> projectileBounceComponentType;
     private MobWaveSpawner mobWaveSpawner;
-    // SignatureEnergySystem removed
+    private BossHudSystem bossHudSystem;
+    private LifeEssenceLevelSystem lifeEssenceLevelSystem;
+    private PlayerStateStoreManager stateStoreManager;
 
     public HytaleMod(@Nonnull JavaPluginInit init) {
         super(init);
@@ -41,62 +58,61 @@ public class HytaleMod extends JavaPlugin {
         return this.mobWaveSpawner;
     }
 
-    @Override
+    public BossHudSystem getBossHudSystem() {
+        return this.bossHudSystem;
+    }
+
+    public ComponentType<EntityStore, VampireShooterComponent> getVampireShooterComponentType() {
+        return this.vampireShooterComponentType;
+    }
+
+    public ComponentType<EntityStore, ProjectileBounceComponent> getProjectileBounceComponentType() {
+        return this.projectileBounceComponentType;
+    }
+
+    public LifeEssenceLevelSystem getLifeEssenceLevelSystem() {
+        return this.lifeEssenceLevelSystem;
+    }
+
+    public PlayerStateStoreManager getStateStoreManager() {
+        return this.stateStoreManager;
+    }
+
     protected void setup() {
-        // Called during plugin setup phase
-        // Register codecs, configs here
-        getLogger().at(Level.INFO).log("Hytale Surivors is setting up...");
-        
-        // Register the VampireShooterComponent
-        ComponentRegistryProxy<EntityStore> entityStoreRegistry = this.getEntityStoreRegistry();
-        this.vampireShooterComponentType = entityStoreRegistry.registerComponent(
-            VampireShooterComponent.class, 
-            VampireShooterComponent::new
-        );
-        this.mobWaveMarkerComponentType = entityStoreRegistry.registerComponent(
-            SpawnedByMobWaveComponent.class,
-            SpawnedByMobWaveComponent::new
-        );
-        this.bossWaveComponentType = entityStoreRegistry.registerComponent(
-            BossWaveComponent.class,
-            BossWaveComponent::new
-        );
-
-        // Register systems
-        entityStoreRegistry.registerSystem(new VampireShooterAdder(this.vampireShooterComponentType));
-        entityStoreRegistry.registerSystem(new VampireShooterSystem(this.vampireShooterComponentType));
-        entityStoreRegistry.registerSystem(new SignatureEnergyOnHitSystem());
-        entityStoreRegistry.registerSystem(new LifeEssenceDropSystem(this.mobWaveMarkerComponentType));
-        entityStoreRegistry.registerSystem(new BossWaveDeathSystem(this.bossWaveComponentType));
-
-        this.mobWaveSpawner = new MobWaveSpawner(
-            this,
-            this.mobWaveMarkerComponentType,
-            this.bossWaveComponentType
-        );
-
-        getLogger().at(Level.INFO).log("Hytale Surivors setup complete!");
+        this.getLogger().at(Level.INFO).log("Hytale Surivors is setting up...");
+        ComponentRegistryProxy entityStoreRegistry = this.getEntityStoreRegistry();
+        this.vampireShooterComponentType = entityStoreRegistry.registerComponent(VampireShooterComponent.class, VampireShooterComponent::new);
+        this.mobWaveMarkerComponentType = entityStoreRegistry.registerComponent(SpawnedByMobWaveComponent.class, SpawnedByMobWaveComponent::new);
+        this.bossWaveComponentType = entityStoreRegistry.registerComponent(BossWaveComponent.class, BossWaveComponent::new);
+        this.lifeEssenceDropComponentType = entityStoreRegistry.registerComponent(LifeEssenceDropComponent.class, LifeEssenceDropComponent::new);
+        this.projectileBounceComponentType = entityStoreRegistry.registerComponent(ProjectileBounceComponent.class, ProjectileBounceComponent::new);
+        this.stateStoreManager = new PlayerStateStoreManager(this.getFile());
+        this.mobWaveSpawner = new MobWaveSpawner(this, this.mobWaveMarkerComponentType, this.bossWaveComponentType);
+        this.lifeEssenceLevelSystem = new LifeEssenceLevelSystem(this);
+        entityStoreRegistry.registerSystem((ISystem)new VampireShooterAdder(this.vampireShooterComponentType));
+        entityStoreRegistry.registerSystem((ISystem)new VampireShooterSystem(this.vampireShooterComponentType));
+        entityStoreRegistry.registerSystem((ISystem)new SignatureEnergyOnHitSystem());
+        entityStoreRegistry.registerSystem((ISystem)new PlayerDamageBonusSystem());
+        entityStoreRegistry.registerSystem((ISystem)new ProjectileBounceOnHitSystem(this.projectileBounceComponentType));
+        entityStoreRegistry.registerSystem((ISystem)new LifeEssenceDropSystem(this.mobWaveMarkerComponentType, this.bossWaveComponentType, this.lifeEssenceDropComponentType));
+        entityStoreRegistry.registerSystem((ISystem)new LifeEssencePickupSystem(this.lifeEssenceDropComponentType, this.vampireShooterComponentType, this.lifeEssenceLevelSystem));
+        entityStoreRegistry.registerSystem((ISystem)new BossWaveDeathSystem(this.bossWaveComponentType));
+        this.bossHudSystem = new BossHudSystem(this.bossWaveComponentType, this.mobWaveSpawner);
+        entityStoreRegistry.registerSystem((ISystem)this.bossHudSystem);
+        this.getLogger().at(Level.INFO).log("Hytale Surivors setup complete!");
     }
 
-    @Override
     protected void start() {
-        // Called when plugin starts
-        // Register events, commands, entities, blocks here
-        getLogger().at(Level.INFO).log("Hytale Surivors started successfully!");
-        
-        // SignatureEnergySystem removed
+        this.getLogger().at(Level.INFO).log("Hytale Surivors started successfully!");
+        this.getCommandRegistry().registerCommand((AbstractCommand)new PowerUpStoreCommand());
+        this.getCommandRegistry().registerCommand((AbstractCommand)new StartWavesCommand());
+        this.getCommandRegistry().registerCommand((AbstractCommand)new ProjectileRainCommand());
     }
 
-    @Override
     protected void shutdown() {
-        // Called when plugin shuts down
-        // Cleanup resources here
-        getLogger().at(Level.INFO).log("HytaleMod is shutting down...");
-
+        this.getLogger().at(Level.INFO).log("HytaleMod is shutting down...");
         if (this.mobWaveSpawner != null) {
             this.mobWaveSpawner.shutdown();
         }
-
-        // SignatureEnergySystem removed
     }
 }

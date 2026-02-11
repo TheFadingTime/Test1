@@ -1,0 +1,404 @@
+Group #PowerUpStorePage {
+  Anchor: (Full: 0);
+  LayoutMode: CenterMiddle;
+
+  Group #StoreDialogFrame {
+    Anchor: (Width: 760, Height: 384);
+    LayoutMode: Full;
+    Background: #1b2733;
+    Padding: 2;
+
+    Group #StoreDialog {
+      Anchor: (Full: 0);
+      LayoutMode: Top;
+      Background: #1c2835;
+      Padding: (Top: 12, Bottom: 8, Left: 18, Right: 18);
+
+      Label #StoreTitle {
+        Style: (
+          FontSize: 22,
+          TextColor: #f0c766,
+          RenderBold: true,
+          HorizontalAlignment: Center,
+        );
+        Padding: (Horizontal: 8);
+        Text: "LEVEL 10 - CHOOSE A POWER-UP!";
+      }
+
+      Group #StoreTitleDivider {
+        Anchor: (Height: 2);
+        Background: #19252F;
+        Padding: (Top: 6);
+      }
+
+      Group #StoreCardRowSpacer {
+        Anchor: (Height: 6);
+      }
+
+      Group #StoreCardRow {
+        Anchor: (Height: 308);
+        LayoutMode: Left;
+        Padding: (Left: 6, Right: 6);
+
+        Button #StoreCardLeftButton {
+          Anchor: (Width: 220, Height: 308);
+          LayoutMode: Top;
+          Padding: 8;
+          Style: (
+            Default: (
+              Background: #252F3A,
+            ),
+            Hovered: (
+              Background: #3a4b5a,
+            ),
+            Pressed: (
+              Background: #24303b,
+            )
+          );
+
+          Group #StoreCardLeftContent {
+            Anchor: (Width: 204, Height: 294);
+            LayoutMode: Full;
+            Background: #1c2835;
+
+            Group #StoreCardLeftBody {
+              Anchor: (Full: 0);
+              LayoutMode: Top;
+              Padding: (Top: 8, Left: 10, Right: 10, Bottom: 10);
+
+              Group #StoreCardLeftIcon {
+                Anchor: (Height: 120);
+                LayoutMode: CenterMiddle;
+
+                Group #StoreCardLeftIconBox {
+                  Anchor: (Width: 120, Height: 120);
+                  LayoutMode: CenterMiddle;
+
+                  Group #StoreCardLeftIconGlow {
+                    Anchor: (Width: 76, Height: 76);
+                    Background: #5f7c95(0.18);
+                    LayoutMode: CenterMiddle;
+
+                    Group #StoreCardLeftIconImage {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Potion_Regen_Mana_Large.png";
+                    }
+                    Group #StoreCardLeftIconBounce {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Ice_Bolt_Texture.png";
+                      Visible: false;
+                    }
+                  }
+                }
+              }
+
+              Label #StoreCardLeftTitle {
+                Style: (
+                  FontSize: 16,
+                  TextColor: #e9eef3,
+                  RenderBold: true,
+                  HorizontalAlignment: Center,
+                );
+                Text: "FIRE RATE";
+              }
+
+              Label #StoreCardLeftMaxRankInline {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #d18f42,
+                  RenderBold: true,
+                  RenderUppercase: true,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 8);
+                Text: "MAX RANK";
+                Visible: false;
+              }
+
+              Label #StoreCardLeftDesc {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #8a9aaa,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 20);
+                Text: "+15% attack speed";
+              }
+
+              Label #StoreCardLeftRank {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #4f8f5f,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 28);
+                Text: "RANK 1";
+              }
+
+              Label #StoreCardLeftSelect {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #5f7c95,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 14);
+                Text: "CLICK TO SELECT";
+              }
+            }
+
+            Group #StoreCardLeftDisabledOverlay {
+              Anchor: (Full: 0);
+              LayoutMode: Full;
+              Background: #0b0f14(0.6);
+              Visible: false;
+
+              Group { }
+            }
+          }
+        }
+
+        Group #StoreCardSpacerLeft {
+          Anchor: (Width: 18, Height: 308);
+        }
+
+        Button #StoreCardCenterButton {
+          Anchor: (Width: 220, Height: 308);
+          LayoutMode: Top;
+          Padding: 8;
+          Style: (
+            Default: (
+              Background: #252F3A,
+            ),
+            Hovered: (
+              Background: #3a4b5a,
+            ),
+            Pressed: (
+              Background: #24303b,
+            )
+          );
+
+          Group #StoreCardCenterContent {
+            Anchor: (Width: 204, Height: 294);
+            LayoutMode: Full;
+            Background: #1c2835;
+
+            Group #StoreCardCenterBody {
+              Anchor: (Full: 0);
+              LayoutMode: Top;
+              Padding: (Top: 8, Left: 10, Right: 10, Bottom: 10);
+
+              Group #StoreCardCenterIcon {
+                Anchor: (Height: 120);
+                LayoutMode: CenterMiddle;
+
+                Group #StoreCardCenterIconBox {
+                  Anchor: (Width: 120, Height: 120);
+                  LayoutMode: CenterMiddle;
+
+                  Group #StoreCardCenterIconGlow {
+                    Anchor: (Width: 76, Height: 76);
+                    Background: #5f7c95(0.18);
+                    LayoutMode: CenterMiddle;
+
+                    Group #StoreCardCenterIconImage {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Ingredient_Life_Essence.png";
+                    }
+                    Group #StoreCardCenterIconBounce {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Ice_Bolt_Texture.png";
+                      Visible: false;
+                    }
+                  }
+                }
+              }
+
+              Label #StoreCardCenterTitle {
+                Style: (
+                  FontSize: 16,
+                  TextColor: #e9eef3,
+                  RenderBold: true,
+                  HorizontalAlignment: Center,
+                );
+                Text: "PICKUP RANGE";
+              }
+
+              Label #StoreCardCenterMaxRankInline {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #d18f42,
+                  RenderBold: true,
+                  RenderUppercase: true,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 8);
+                Text: "MAX RANK";
+                Visible: false;
+              }
+
+              Label #StoreCardCenterDesc {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #8a9aaa,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 20);
+                Text: "+10 pickup range";
+              }
+
+              Label #StoreCardCenterRank {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #4f8f5f,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 28);
+                Text: "RANK 1";
+              }
+
+              Label #StoreCardCenterSelect {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #5f7c95,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 14);
+                Text: "CLICK TO SELECT";
+              }
+            }
+
+            Group #StoreCardCenterDisabledOverlay {
+              Anchor: (Full: 0);
+              LayoutMode: Full;
+              Background: #0b0f14(0.6);
+              Visible: false;
+
+              Group { }
+            }
+          }
+        }
+
+        Group #StoreCardSpacerRight {
+          Anchor: (Width: 18, Height: 308);
+        }
+
+        Button #StoreCardRightButton {
+          Anchor: (Width: 220, Height: 308);
+          LayoutMode: Top;
+          Padding: 8;
+          Style: (
+            Default: (
+              Background: #252F3A,
+            ),
+            Hovered: (
+              Background: #3a4b5a,
+            ),
+            Pressed: (
+              Background: #24303b,
+            )
+          );
+
+          Group #StoreCardRightContent {
+            Anchor: (Width: 204, Height: 294);
+            LayoutMode: Full;
+            Background: #1c2835;
+
+            Group #StoreCardRightBody {
+              Anchor: (Full: 0);
+              LayoutMode: Top;
+              Padding: (Top: 8, Left: 10, Right: 10, Bottom: 10);
+
+              Group #StoreCardRightIcon {
+                Anchor: (Height: 120);
+                LayoutMode: CenterMiddle;
+
+                Group #StoreCardRightIconBox {
+                  Anchor: (Width: 120, Height: 120);
+                  LayoutMode: CenterMiddle;
+
+                  Group #StoreCardRightIconGlow {
+                    Anchor: (Width: 76, Height: 76);
+                    Background: #5f7c95(0.18);
+                    LayoutMode: CenterMiddle;
+
+                    Group #StoreCardRightIconImage {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Weapon_Staff_Crystal_Purple.png";
+                    }
+                    Group #StoreCardRightIconBounce {
+                      Anchor: (Width: 64, Height: 64);
+                      Background: "Store/Ice_Bolt_Texture.png";
+                      Visible: false;
+                    }
+                  }
+                }
+              }
+
+              Label #StoreCardRightTitle {
+                Style: (
+                  FontSize: 16,
+                  TextColor: #e9eef3,
+                  RenderBold: true,
+                  HorizontalAlignment: Center,
+                );
+                Text: "EXTRA PROJECTILE";
+              }
+
+              Label #StoreCardRightMaxRankInline {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #d18f42,
+                  RenderBold: true,
+                  RenderUppercase: true,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 8);
+                Text: "MAX RANK";
+                Visible: false;
+              }
+
+              Label #StoreCardRightDesc {
+                Style: (
+                  FontSize: 13,
+                  TextColor: #8a9aaa,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 20);
+                Text: "+1 projectiles";
+              }
+
+              Label #StoreCardRightRank {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #4f8f5f,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 28);
+                Text: "RANK 1";
+              }
+
+              Label #StoreCardRightSelect {
+                Style: (
+                  FontSize: 12,
+                  TextColor: #5f7c95,
+                  HorizontalAlignment: Center,
+                );
+                Padding: (Top: 14);
+                Text: "CLICK TO SELECT";
+              }
+            }
+
+            Group #StoreCardRightDisabledOverlay {
+              Anchor: (Full: 0);
+              LayoutMode: Full;
+              Background: #0b0f14(0.6);
+              Visible: false;
+
+              Group { }
+            }
+          }
+        }
+      }
+    }
+  }
+}
