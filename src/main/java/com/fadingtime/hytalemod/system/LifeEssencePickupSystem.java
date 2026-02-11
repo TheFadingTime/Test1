@@ -2,7 +2,6 @@ package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.component.LifeEssenceDropComponent;
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
-import com.fadingtime.hytalemod.system.LifeEssenceLevelSystem;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentAccessor;
@@ -45,9 +44,9 @@ extends EntityTickingSystem<EntityStore> {
     @Nonnull
     private final Query<EntityStore> itemQuery;
     @Nonnull
-    private final LifeEssenceLevelSystem levelSystem;
+    private final PlayerProgressionManager levelSystem;
 
-    public LifeEssencePickupSystem(@Nonnull ComponentType<EntityStore, LifeEssenceDropComponent> lifeEssenceDropType, @Nonnull ComponentType<EntityStore, VampireShooterComponent> shooterType, @Nonnull LifeEssenceLevelSystem levelSystem) {
+    public LifeEssencePickupSystem(@Nonnull ComponentType<EntityStore, LifeEssenceDropComponent> lifeEssenceDropType, @Nonnull ComponentType<EntityStore, VampireShooterComponent> shooterType, @Nonnull PlayerProgressionManager levelSystem) {
         this.lifeEssenceDropType = lifeEssenceDropType;
         this.transformType = TransformComponent.getComponentType();
         this.itemType = ItemComponent.getComponentType();
@@ -130,4 +129,3 @@ extends EntityTickingSystem<EntityStore> {
         });
     }
 }
-

@@ -4,7 +4,7 @@ import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.component.BossWaveComponent;
 import com.fadingtime.hytalemod.component.LifeEssenceDropComponent;
 import com.fadingtime.hytalemod.component.SpawnedByMobWaveComponent;
-import com.fadingtime.hytalemod.config.MobSpawnConfig;
+import com.fadingtime.hytalemod.config.ConfigManager;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.Component;
@@ -75,7 +75,7 @@ extends DeathSystems.OnDeathSystem {
         }
         boolean isBoss = commandBuffer.getComponent(ref, this.bossMarkerType) != null || store.getComponent(ref, this.bossMarkerType) != null;
         int essenceDropCount = isBoss ? BOSS_ESSENCE_DROP_COUNT : NORMAL_ESSENCE_DROP_COUNT;
-        ItemStack lifeEssence = new ItemStack(MobSpawnConfig.LIFE_ESSENCE_ITEM_ID, essenceDropCount);
+        ItemStack lifeEssence = new ItemStack(ConfigManager.get().lifeEssenceItemId, essenceDropCount);
         Vector3d dropPosition = transform.getPosition().clone().add(0.0, 1.0, 0.0);
         Vector3f dropRotation = headRotation != null ? headRotation.getRotation().clone() : new Vector3f(0.0f, 0.0f, 0.0f);
         Holder[] drops = ItemComponent.generateItemDrops(store, List.of(lifeEssence), (Vector3d)dropPosition, (Vector3f)dropRotation);

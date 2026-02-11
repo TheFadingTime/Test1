@@ -8,13 +8,14 @@ import com.fadingtime.hytalemod.component.LifeEssenceDropComponent;
 import com.fadingtime.hytalemod.component.ProjectileBounceComponent;
 import com.fadingtime.hytalemod.component.SpawnedByMobWaveComponent;
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
+import com.fadingtime.hytalemod.config.ConfigManager;
 import com.fadingtime.hytalemod.persistence.PlayerStateStoreManager;
 import com.fadingtime.hytalemod.spawner.MobWaveSpawner;
 import com.fadingtime.hytalemod.system.BossHudSystem;
 import com.fadingtime.hytalemod.system.BossWaveDeathSystem;
 import com.fadingtime.hytalemod.system.LifeEssenceDropSystem;
-import com.fadingtime.hytalemod.system.LifeEssenceLevelSystem;
 import com.fadingtime.hytalemod.system.LifeEssencePickupSystem;
+import com.fadingtime.hytalemod.system.PlayerProgressionManager;
 import com.fadingtime.hytalemod.system.PlayerDamageBonusSystem;
 import com.fadingtime.hytalemod.system.ProjectileBounceOnHitSystem;
 import com.fadingtime.hytalemod.system.SignatureEnergyOnHitSystem;
@@ -33,7 +34,7 @@ import javax.annotation.Nonnull;
 
 public class HytaleMod
 extends JavaPlugin {
-    public static final Logger LOGGER = Logger.getLogger("Hytale Surivors");
+    public static final Logger LOGGER = Logger.getLogger("Hytale Survivors");
     private static HytaleMod INSTANCE;
     private ComponentType<EntityStore, VampireShooterComponent> vampireShooterComponentType;
     private ComponentType<EntityStore, SpawnedByMobWaveComponent> mobWaveMarkerComponentType;
@@ -42,7 +43,7 @@ extends JavaPlugin {
     private ComponentType<EntityStore, ProjectileBounceComponent> projectileBounceComponentType;
     private MobWaveSpawner mobWaveSpawner;
     private BossHudSystem bossHudSystem;
-    private LifeEssenceLevelSystem lifeEssenceLevelSystem;
+    private PlayerProgressionManager lifeEssenceLevelSystem;
     private PlayerStateStoreManager stateStoreManager;
 
     public HytaleMod(@Nonnull JavaPluginInit init) {
@@ -70,7 +71,7 @@ extends JavaPlugin {
         return this.projectileBounceComponentType;
     }
 
-    public LifeEssenceLevelSystem getLifeEssenceLevelSystem() {
+    public PlayerProgressionManager getLifeEssenceLevelSystem() {
         return this.lifeEssenceLevelSystem;
     }
 
@@ -79,7 +80,8 @@ extends JavaPlugin {
     }
 
     protected void setup() {
-        this.getLogger().at(Level.INFO).log("Hytale Surivors is setting up...");
+        this.getLogger().at(Level.INFO).log("Hytale Survivors is setting up...");
+        ConfigManager.load(this.getFile(), LOGGER);
         ComponentRegistryProxy entityStoreRegistry = this.getEntityStoreRegistry();
         this.vampireShooterComponentType = entityStoreRegistry.registerComponent(VampireShooterComponent.class, VampireShooterComponent::new);
         this.mobWaveMarkerComponentType = entityStoreRegistry.registerComponent(SpawnedByMobWaveComponent.class, SpawnedByMobWaveComponent::new);
@@ -88,7 +90,7 @@ extends JavaPlugin {
         this.projectileBounceComponentType = entityStoreRegistry.registerComponent(ProjectileBounceComponent.class, ProjectileBounceComponent::new);
         this.stateStoreManager = new PlayerStateStoreManager(this.getFile());
         this.mobWaveSpawner = new MobWaveSpawner(this, this.mobWaveMarkerComponentType, this.bossWaveComponentType);
-        this.lifeEssenceLevelSystem = new LifeEssenceLevelSystem(this);
+        this.lifeEssenceLevelSystem = new PlayerProgressionManager(this);
         entityStoreRegistry.registerSystem((ISystem)new VampireShooterAdder(this.vampireShooterComponentType));
         entityStoreRegistry.registerSystem((ISystem)new VampireShooterSystem(this.vampireShooterComponentType));
         entityStoreRegistry.registerSystem((ISystem)new SignatureEnergyOnHitSystem());
@@ -99,11 +101,11 @@ extends JavaPlugin {
         entityStoreRegistry.registerSystem((ISystem)new BossWaveDeathSystem(this.bossWaveComponentType));
         this.bossHudSystem = new BossHudSystem(this.bossWaveComponentType, this.mobWaveSpawner);
         entityStoreRegistry.registerSystem((ISystem)this.bossHudSystem);
-        this.getLogger().at(Level.INFO).log("Hytale Surivors setup complete!");
+        this.getLogger().at(Level.INFO).log("Hytale Survivors setup complete!");
     }
 
     protected void start() {
-        this.getLogger().at(Level.INFO).log("Hytale Surivors started successfully!");
+        this.getLogger().at(Level.INFO).log("Hytale Survivors started successfully!");
         this.getCommandRegistry().registerCommand((AbstractCommand)new PowerUpStoreCommand());
         this.getCommandRegistry().registerCommand((AbstractCommand)new StartWavesCommand());
         this.getCommandRegistry().registerCommand((AbstractCommand)new ProjectileRainCommand());

@@ -16,12 +16,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.annotation.Nonnull;
 import org.bson.BsonDocument;
 
 public class PowerUpStorePage
 extends CustomUIPage {
     private static final String UI_PATH = "Pages/PowerUpStore.ui";
+    private static final Logger LOGGER = Logger.getLogger(PowerUpStorePage.class.getName());
     private final int level;
 
     public PowerUpStorePage(@Nonnull PlayerRef playerRef, int level) {
@@ -96,7 +99,7 @@ extends CustomUIPage {
         builder.set(prefix + "Rank.Text", "RANK " + option.rank + " OF " + option.maxRank);
         builder.set(prefix + "IconImage.Background", option.icon);
         if (!option.isMaxed) {
-            events.addEventBinding(CustomUIEventBindingType.Activating, prefix + "Button", EventData.of((String)"choice", (String)option.choice));
+            events.addEventBinding(CustomUIEventBindingType.Activating, prefix + "Button", EventData.of("choice", option.choice));
         } else {
             builder.set(prefix + "DisabledOverlay.Visible", true);
             builder.set(prefix + "MaxRankInline.Visible", true);
@@ -107,29 +110,29 @@ extends CustomUIPage {
         if (data.isBlank()) {
             return;
         }
-        boolean applied = false;
+        BsonDocument doc;
         try {
-            BsonDocument doc = BsonDocument.parse((String)data);
-            if (doc.containsKey((Object)"choice")) {
-                String choice = doc.getString((Object)"choice").getValue();
-                Player playerComponent = (Player)store.getComponent(ref, Player.getComponentType());
-                PlayerRef playerRefComponent = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
-                UUID playerId = playerRefComponent != null ? playerRefComponent.getUuid() : null;
-                if (playerId != null && !HytaleMod.getInstance().getLifeEssenceLevelSystem().canAcceptStoreSelection(playerId)) {
-                    return;
-                }
-                if (playerComponent != null) {
-                    HytaleMod.getInstance().getLifeEssenceLevelSystem().applyPowerUp(ref, store, choice);
-                    applied = true;
-                }
-            }
+            doc = BsonDocument.parse(data);
         }
         catch (Exception exception) {
-            // empty catch block
+            LOGGER.log(Level.WARNING, "Failed to parse store selection payload: " + data, exception);
+            return;
         }
-        if (applied) {
-            HytaleMod.getInstance().getLifeEssenceLevelSystem().closeStoreForPlayer(ref, store);
+        if (!doc.containsKey("choice")) {
+            return;
         }
+        Player playerComponent = (Player)store.getComponent(ref, Player.getComponentType());
+        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerComponent == null || playerRefComponent == null) {
+            return;
+        }
+        UUID playerId = playerRefComponent.getUuid();
+        if (!HytaleMod.getInstance().getLifeEssenceLevelSystem().canAcceptStoreSelection(playerId)) {
+            return;
+        }
+        String choice = doc.getString("choice").getValue();
+        HytaleMod.getInstance().getLifeEssenceLevelSystem().applyPowerUp(ref, store, choice);
+        HytaleMod.getInstance().getLifeEssenceLevelSystem().closeStoreForPlayer(ref, store);
     }
 
     public void requestClose() {

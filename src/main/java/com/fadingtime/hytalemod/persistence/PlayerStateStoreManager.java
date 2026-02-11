@@ -15,22 +15,28 @@ import java.util.stream.Stream;
 public final class PlayerStateStoreManager {
     private static final String LEGACY_DATA_DIR = "HytaleMod-data";
     private static final String MOD_DATA_ROOT_DIR = "ModData";
-    private static final String MOD_DATA_DIR = "HytaleSurivors";
+    private static final String MOD_DATA_DIR = "HytaleSurvivors";
+    private static final String LEGACY_MOD_DATA_DIR = "HytaleSurivors";
     private static final String WORLDS_DIR = "worlds";
     private final Path baseDir;
     private final ConcurrentMap<String, PlayerStateStore> stores = new ConcurrentHashMap<String, PlayerStateStore>();
 
     public PlayerStateStoreManager(Path pluginFilePath) {
         Path pluginDir = pluginFilePath.getParent();
-        Path fallbackDir = pluginDir != null ? pluginDir : pluginFilePath.toAbsolutePath().getParent();
-        if (fallbackDir == null) {
-            fallbackDir = Path.of(".");
+        Path baseCandidate = pluginDir != null ? pluginDir : pluginFilePath.toAbsolutePath().getParent();
+        if (baseCandidate == null) {
+            baseCandidate = Path.of(".");
         }
-        Path userDataDir = fallbackDir.getParent();
+        Path userDataDir = baseCandidate.getParent();
         this.baseDir = userDataDir != null
             ? userDataDir.resolve(MOD_DATA_ROOT_DIR).resolve(MOD_DATA_DIR).resolve(WORLDS_DIR)
-            : fallbackDir.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR);
-        PlayerStateStoreManager.migrateLegacyData(pluginDir, this.baseDir);
+            : baseCandidate.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR);
+        Path legacyPluginWorldDir = pluginDir != null ? pluginDir.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR) : null;
+        Path legacyModDataWorldDir = userDataDir != null
+            ? userDataDir.resolve(MOD_DATA_ROOT_DIR).resolve(LEGACY_MOD_DATA_DIR).resolve(WORLDS_DIR)
+            : null;
+        PlayerStateStoreManager.migrateLegacyData(legacyPluginWorldDir, this.baseDir);
+        PlayerStateStoreManager.migrateLegacyData(legacyModDataWorldDir, this.baseDir);
     }
 
     public PlayerStateStore getStore(String worldName) {
@@ -71,11 +77,10 @@ public final class PlayerStateStoreManager {
         return safe;
     }
 
-    private static void migrateLegacyData(Path pluginDir, Path targetBaseDir) {
-        if (pluginDir == null || targetBaseDir == null) {
+    private static void migrateLegacyData(Path legacyBaseDir, Path targetBaseDir) {
+        if (legacyBaseDir == null || targetBaseDir == null) {
             return;
         }
-        Path legacyBaseDir = pluginDir.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR);
         if (legacyBaseDir.equals(targetBaseDir) || !Files.isDirectory(legacyBaseDir)) {
             return;
         }

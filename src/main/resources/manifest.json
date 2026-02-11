@@ -1,6 +1,6 @@
 {
   "Group": "com.fadingtime",
-  "Name": "Hytale Surivors",
+  "Name": "Hytale Survivors",
   "Version": "1.0.0",
   "Main": "com.fadingtime.hytalemod.HytaleMod",
   "ServerVersion": "*",
@@ -9,6 +9,6 @@
       "Name": "FadingTime"
     }
   ],
-  "Description": "Hytale Surivors - custom HUD + wave/boss systems.",
+  "Description": "Hytale Survivors - custom HUD + wave/boss systems.",
   "IncludesAssetPack": true
 }

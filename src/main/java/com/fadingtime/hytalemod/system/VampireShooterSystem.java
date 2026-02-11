@@ -32,7 +32,6 @@ extends EntityTickingSystem<EntityStore> {
     private static final float FIREBALL_BOUNCE_SPEED_MULTIPLIER = 0.85f;
     private static final int MAX_PROJECTILES = 10;
     private static final String RAIN_PROJECTILE_PRIMARY_ID = "Fireball";
-    private static final String RAIN_PROJECTILE_FALLBACK_ID = FIREBALL_PROJECTILE_ID;
     private static final int PROJECTILE_RAIN_COUNT = 50;
     private static final double PROJECTILE_RAIN_RADIUS = 25.0;
     private static final double PROJECTILE_RAIN_HEIGHT = 40.0;
@@ -136,7 +135,6 @@ extends EntityTickingSystem<EntityStore> {
 
     private void spawnProjectileRain(@Nonnull Ref<EntityStore> ownerRef, @Nonnull Vector3d center, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        boolean triedFallback = false;
         for (int i = 0; i < PROJECTILE_RAIN_COUNT; ++i) {
             double angle = random.nextDouble() * Math.PI * 2.0;
             double radius = Math.sqrt(random.nextDouble()) * PROJECTILE_RAIN_RADIUS;
@@ -145,12 +143,7 @@ extends EntityTickingSystem<EntityStore> {
             Vector3d spawnPos = center.clone();
             spawnPos.add(x, PROJECTILE_RAIN_HEIGHT, z);
             Vector3d velocity = new Vector3d(0.0, -PROJECTILE_RAIN_SPEED, 0.0);
-            if (ProjectileHelper.fireProjectileWithVelocity(ownerRef, commandBuffer, this.uuidComponentType, spawnPos, velocity, RAIN_PROJECTILE_PRIMARY_ID, HytaleMod.LOGGER)) continue;
-            if (RAIN_PROJECTILE_FALLBACK_ID.equals(RAIN_PROJECTILE_PRIMARY_ID)) continue;
-            ProjectileHelper.fireProjectileWithVelocity(ownerRef, commandBuffer, this.uuidComponentType, spawnPos, velocity, RAIN_PROJECTILE_FALLBACK_ID, HytaleMod.LOGGER);
-            if (triedFallback) continue;
-            HytaleMod.LOGGER.warning("Projectile rain: primary projectile id '" + RAIN_PROJECTILE_PRIMARY_ID + "' was unavailable; using fallback '" + RAIN_PROJECTILE_FALLBACK_ID + "'.");
-            triedFallback = true;
+            ProjectileHelper.fireProjectileWithVelocity(ownerRef, commandBuffer, this.uuidComponentType, spawnPos, velocity, RAIN_PROJECTILE_PRIMARY_ID, HytaleMod.LOGGER);
         }
     }
 }
