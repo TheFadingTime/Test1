@@ -2,6 +2,7 @@ package com.fadingtime.hytalemod.command;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.system.PlayerProgressionManager;
+import com.fadingtime.hytalemod.system.PowerUpType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.GameMode;
@@ -35,7 +36,9 @@ extends AbstractPlayerCommand {
             return;
         }
         int n = playerProgressionManager.getExtraProjectileRank(uUID, store);
-        playerProgressionManager.applyPowerUp(ref, store, "extra_projectile");
+        // Use the enum constant instead of a raw string — if the key ever changes,
+        // this line will fail at compile time rather than silently doing nothing.
+        playerProgressionManager.applyPowerUp(ref, store, PowerUpType.EXTRA_PROJECTILE.key());
         int n2 = playerProgressionManager.getExtraProjectileRank(uUID, store);
         if (n2 > n) {
             commandContext.sendMessage(Message.raw((String)("Added +1 projectile. Rank: " + n2)));

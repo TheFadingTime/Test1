@@ -34,7 +34,7 @@ public final class ConfigLoader {
         Path externalPath = resolveExternalPath(pluginFilePath);
         JsonObject externalJson = readExternalJson(externalPath, logger);
         if (externalJson != null) {
-            ConfigManager.SpawnConfig parsedExternal = parseSpawnConfig(externalJson, logger, externalPath.toString());
+            ConfigManager.SpawnConfig parsedExternal = parseSpawnConfig(externalJson, defaults, logger, externalPath.toString());
             if (parsedExternal != null) {
                 return parsedExternal;
             }
@@ -42,7 +42,7 @@ public final class ConfigLoader {
         }
 
         JsonObject bundledJson = readBundledJson(logger);
-        ConfigManager.SpawnConfig parsedBundled = parseSpawnConfig(bundledJson, logger, "bundled:" + BUNDLED_RESOURCE);
+        ConfigManager.SpawnConfig parsedBundled = parseSpawnConfig(bundledJson, defaults, logger, "bundled:" + BUNDLED_RESOURCE);
         if (parsedBundled != null) {
             if (externalJson == null) {
                 tryWriteDefaultExternal(externalPath, bundledJson, logger);
@@ -103,7 +103,8 @@ public final class ConfigLoader {
 
     private static JsonObject parseJsonObject(String raw, String source, Logger logger) {
         try {
-            JsonElement parsed = JsonParser.parseString(raw);
+            String stripped = ConfigUtils.stripJsonComments(raw);
+            JsonElement parsed = JsonParser.parseString(stripped);
             if (!parsed.isJsonObject()) {
                 logger.warning(source + " is not a JSON object.");
                 return null;
@@ -117,6 +118,7 @@ public final class ConfigLoader {
 
     private static ConfigManager.SpawnConfig parseSpawnConfig(
         JsonObject root,
+        ConfigManager.SpawnConfig defaults,
         Logger logger,
         String source
     ) {
@@ -125,18 +127,29 @@ public final class ConfigLoader {
         }
 
         try {
-            int spawnCount = readInt(root, "spawnCount", 0);
-            int spawnCountPerWave = readInt(root, "spawnCountPerWave", 0);
-            int maxMobsPerWave = readInt(root, "maxMobsPerWave", 1);
-            long spawnIntervalMs = readLong(root, "spawnIntervalMs", 500L);
-            double minSpawnRadius = readDouble(root, "minSpawnRadius", 0.1);
-            double maxSpawnRadius = readDouble(root, "maxSpawnRadius", minSpawnRadius);
-            double spawnYOffset = readDouble(root, "spawnYOffset", -1024.0);
-            float maxMobHealth = readFloat(root, "maxMobHealth", 1.0f);
-            float waveHealthBonus = readFloat(root, "waveHealthBonus", 0.0f);
-            List<String> hostileRoles = readStringList(root, "hostileRoles");
-            String lifeEssenceItemId = readString(root, "lifeEssenceItemId");
+            JsonObject spawning = getSubObject(root, "spawning");
+            JsonObject spawnArea = getSubObject(root, "spawnArea");
+            JsonObject mobs = getSubObject(root, "mobs");
+            JsonObject reconnect = getSubObject(root, "reconnect");
+
+            int spawnCount = readInt(spawning, "spawnCount", defaults.spawnCount, 0);
+            int spawnCountPerWave = readInt(spawning, "spawnCountPerWave", defaults.spawnCountPerWave, 0);
+            int maxMobsPerWave = readInt(spawning, "maxMobsPerWave", defaults.maxMobsPerWave, 1);
+            long spawnIntervalMs = readLong(spawning, "spawnIntervalMs", defaults.spawnIntervalMs, 500L);
+            double minSpawnRadius = readDouble(spawnArea, "minSpawnRadius", defaults.minSpawnRadius, 0.1);
+            double maxSpawnRadius = readDouble(spawnArea, "maxSpawnRadius", defaults.maxSpawnRadius, minSpawnRadius);
+            double spawnYOffset = readDouble(spawnArea, "spawnYOffset", defaults.spawnYOffset, -1024.0);
+            float maxMobHealth = readFloat(mobs, "maxMobHealth", defaults.maxMobHealth, 1.0f);
+            float waveHealthBonus = readFloat(mobs, "waveHealthBonus", defaults.waveHealthBonus, 0.0f);
+            List<String> hostileRoles = readStringList(mobs, "hostileRoles");
+            String lifeEssenceItemId = readString(mobs, "lifeEssenceItemId", defaults.lifeEssenceItemId);
             List<ConfigManager.BossDefinition> bosses = readBosses(root, logger);
+            long rejoinHoldMaxMs = readLong(reconnect, "rejoinHoldMaxMs", defaults.rejoinHoldMaxMs, 0L);
+            double markerReattachRadius = readDouble(reconnect, "markerReattachRadius", defaults.markerReattachRadius, 0.1);
+            long minSpawnGraceMs = readLong(reconnect, "minSpawnGraceMs", defaults.minSpawnGraceMs, 0L);
+            long maxSpawnGraceMs = readLong(reconnect, "maxSpawnGraceMs", defaults.maxSpawnGraceMs, 0L);
+            long markerReattachDelayMs = readLong(reconnect, "markerReattachDelayMs", defaults.markerReattachDelayMs, 0L);
+            long disconnectDedupMs = readLong(reconnect, "disconnectDedupMs", defaults.disconnectDedupMs, 0L);
 
             return new ConfigManager.SpawnConfig(
                 spawnCount,
@@ -150,7 +163,13 @@ public final class ConfigLoader {
                 waveHealthBonus,
                 hostileRoles,
                 lifeEssenceItemId,
-                bosses
+                bosses,
+                rejoinHoldMaxMs,
+                markerReattachRadius,
+                minSpawnGraceMs,
+                maxSpawnGraceMs,
+                markerReattachDelayMs,
+                disconnectDedupMs
             );
         } catch (RuntimeException exception) {
             logger.log(Level.WARNING, "Invalid spawn config in " + source, exception);
@@ -172,32 +191,34 @@ public final class ConfigLoader {
 
             JsonObject bossJson = element.getAsJsonObject();
             try {
-                String id = readString(bossJson, "id");
-                String role = readString(bossJson, "role");
+                String id = readStringRequired(bossJson, "id");
+                String role = readStringRequired(bossJson, "role");
+                String displayName = hasKey(bossJson, "displayName") ? readStringRequired(bossJson, "displayName") : null;
                 List<Integer> waves = readIntList(bossJson, "waves");
 
                 int startWave;
                 if (hasKey(bossJson, "startWave")) {
-                    startWave = readInt(bossJson, "startWave", 1);
+                    startWave = readIntRequired(bossJson, "startWave", 1);
                 } else if (!waves.isEmpty()) {
                     startWave = waves.get(0);
                 } else {
                     startWave = 1;
                 }
 
-                int interval = hasKey(bossJson, "interval") ? readInt(bossJson, "interval", 0) : 0;
-                float scale = hasKey(bossJson, "scale") ? readFloat(bossJson, "scale", 0.1f) : 1.0f;
-                float healthBase = hasKey(bossJson, "healthBase") ? readFloat(bossJson, "healthBase", 0.1f) : 100.0f;
-                float healthPerStep = hasKey(bossJson, "healthPerStep") ? readFloat(bossJson, "healthPerStep", 0.0f) : 0.0f;
-                String healthModeRaw = hasKey(bossJson, "healthMode") ? readString(bossJson, "healthMode") : "spawn";
+                int interval = hasKey(bossJson, "interval") ? readIntRequired(bossJson, "interval", 0) : 0;
+                float scale = hasKey(bossJson, "scale") ? readFloatRequired(bossJson, "scale", 0.1f) : 1.0f;
+                float healthBase = hasKey(bossJson, "healthBase") ? readFloatRequired(bossJson, "healthBase", 0.1f) : 100.0f;
+                float healthPerStep = hasKey(bossJson, "healthPerStep") ? readFloatRequired(bossJson, "healthPerStep", 0.0f) : 0.0f;
+                String healthModeRaw = hasKey(bossJson, "healthMode") ? readStringRequired(bossJson, "healthMode") : "spawn";
                 ConfigManager.HealthMode healthMode = ConfigManager.HealthMode.fromJsonValue(healthModeRaw);
                 String modifierId = hasKey(bossJson, "healthModifierId")
-                    ? readString(bossJson, "healthModifierId")
+                    ? readStringRequired(bossJson, "healthModifierId")
                     : "BossWaveHealth";
 
                 parsed.add(new ConfigManager.BossDefinition(
                     id,
                     role,
+                    displayName,
                     startWave,
                     interval,
                     waves,
@@ -215,7 +236,80 @@ public final class ConfigLoader {
         return parsed;
     }
 
-    private static int readInt(JsonObject json, String key, int min) {
+    // Default-returning read methods for top-level config fields.
+    // Missing keys return the default instead of throwing, preventing one missing
+    // field from silently discarding the entire config.
+
+    private static int readInt(JsonObject json, String key, int defaultValue, int min) {
+        JsonElement value = json.get(key);
+        if (value == null || !value.isJsonPrimitive()) {
+            return defaultValue;
+        }
+        try {
+            return Math.max(min, value.getAsInt());
+        } catch (RuntimeException exception) {
+            return defaultValue;
+        }
+    }
+
+    private static long readLong(JsonObject json, String key, long defaultValue, long min) {
+        JsonElement value = json.get(key);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
+            return defaultValue;
+        }
+        return Math.max(min, value.getAsLong());
+    }
+
+    private static float readFloat(JsonObject json, String key, float defaultValue, float min) {
+        JsonElement value = json.get(key);
+        if (value == null || !value.isJsonPrimitive()) {
+            return defaultValue;
+        }
+        float parsed;
+        try {
+            parsed = value.getAsFloat();
+        } catch (RuntimeException exception) {
+            return defaultValue;
+        }
+        if (!Float.isFinite(parsed)) {
+            return defaultValue;
+        }
+        return Math.max(min, parsed);
+    }
+
+    private static double readDouble(JsonObject json, String key, double defaultValue, double min) {
+        JsonElement value = json.get(key);
+        if (value == null || !value.isJsonPrimitive()) {
+            return defaultValue;
+        }
+        double parsed;
+        try {
+            parsed = value.getAsDouble();
+        } catch (RuntimeException exception) {
+            return defaultValue;
+        }
+        if (!Double.isFinite(parsed)) {
+            return defaultValue;
+        }
+        return Math.max(min, parsed);
+    }
+
+    private static String readString(JsonObject json, String key, String defaultValue) {
+        JsonElement value = json.get(key);
+        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
+            return defaultValue;
+        }
+        String parsed = value.getAsString();
+        if (parsed == null || parsed.isBlank()) {
+            return defaultValue;
+        }
+        return parsed.trim();
+    }
+
+    // Throwing read methods for boss definitions where missing required fields
+    // should skip the individual boss entry (caught per-boss).
+
+    private static int readIntRequired(JsonObject json, String key, int min) {
         JsonElement value = json.get(key);
         if (value == null || !value.isJsonPrimitive()) {
             throw new IllegalArgumentException("Missing numeric key: " + key);
@@ -227,15 +321,7 @@ public final class ConfigLoader {
         }
     }
 
-    private static long readLong(JsonObject json, String key, long min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
-        }
-        return Math.max(min, value.getAsLong());
-    }
-
-    private static float readFloat(JsonObject json, String key, float min) {
+    private static float readFloatRequired(JsonObject json, String key, float min) {
         JsonElement value = json.get(key);
         if (value == null || !value.isJsonPrimitive()) {
             throw new IllegalArgumentException("Missing numeric key: " + key);
@@ -252,24 +338,7 @@ public final class ConfigLoader {
         return Math.max(min, parsed);
     }
 
-    private static double readDouble(JsonObject json, String key, double min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
-        }
-        double parsed;
-        try {
-            parsed = value.getAsDouble();
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Invalid double key: " + key, exception);
-        }
-        if (!Double.isFinite(parsed)) {
-            throw new IllegalArgumentException("Non-finite double key: " + key);
-        }
-        return Math.max(min, parsed);
-    }
-
-    private static String readString(JsonObject json, String key) {
+    private static String readStringRequired(JsonObject json, String key) {
         JsonElement value = json.get(key);
         if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
             throw new IllegalArgumentException("Missing string key: " + key);
@@ -318,6 +387,14 @@ public final class ConfigLoader {
         }
         Collections.sort(values);
         return values;
+    }
+
+    private static JsonObject getSubObject(JsonObject json, String key) {
+        JsonElement value = json.get(key);
+        if (value != null && value.isJsonObject()) {
+            return value.getAsJsonObject();
+        }
+        return new JsonObject();
     }
 
     private static JsonArray getArray(JsonObject json, String key) {

@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I Refactored a Beginner&rsquo;s Hytale Mod &mdash; Here&rsquo;s Every Lesson</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg-alt: #f6f8fa;
+    --bg-code: #f1f3f5;
+    --text: #1a1a1a;
+    --text-secondary: #555;
+    --accent: #0969da;
+    --accent-hover: #0550ae;
+    --border: #d0d7de;
+    --border-light: #e8ecf0;
+    --callout-info-bg: #ddf4ff;
+    --callout-info-border: #54aeff;
+    --callout-warn-bg: #fff8c5;
+    --callout-warn-border: #d4a72c;
+    --callout-lesson-bg: #f0fdf4;
+    --callout-lesson-border: #2da44e;
+    --callout-smell-bg: #fff0f0;
+    --callout-smell-border: #cf222e;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --bg-alt: #161b22;
+      --bg-code: #1c2129;
+      --text: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --border: #30363d;
+      --border-light: #21262d;
+      --callout-info-bg: #0d2140;
+      --callout-info-border: #1f6feb;
+      --callout-warn-bg: #2a1f00;
+      --callout-warn-border: #d29922;
+      --callout-lesson-bg: #0a200f;
+      --callout-lesson-border: #238636;
+      --callout-smell-bg: #200a0a;
+      --callout-smell-border: #da3633;
+    }
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.72;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrapper {
+    max-width: 740px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  .post-meta {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  h1 {
+    font-size: 2.4em;
+    line-height: 1.18;
+    font-weight: 800;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+  }
+
+  .subtitle {
+    font-size: 1.15em;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin-bottom: 40px;
+  }
+
+  .toc {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc h2 { font-size: 1em; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 0; margin-bottom: 12px; padding-top: 0; border-top: none; color: var(--text-secondary); }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 6px; font-size: 0.95em; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  h2 {
+    font-size: 1.6em;
+    font-weight: 700;
+    margin-top: 56px;
+    margin-bottom: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-light);
+    letter-spacing: -0.3px;
+  }
+
+  h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-top: 36px;
+    margin-bottom: 10px;
+  }
+
+  p { margin-bottom: 18px; }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+  strong { font-weight: 600; }
+
+  ul, ol { margin-bottom: 18px; padding-left: 24px; }
+  li { margin-bottom: 6px; }
+
+  code {
+    font-family: var(--font-mono);
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.88em;
+  }
+
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    line-height: 1.55;
+  }
+
+  pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.85em;
+  }
+
+  .code-filename {
+    display: inline-block;
+    background: var(--border);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.78em;
+    padding: 3px 10px;
+    border-radius: 6px 6px 0 0;
+    margin-bottom: -1px;
+    position: relative;
+    top: 1px;
+  }
+
+  .callout {
+    border-left: 4px solid;
+    border-radius: 6px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    font-size: 0.95em;
+  }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout-label { font-weight: 700; display: block; margin-bottom: 4px; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  .callout-info    { background: var(--callout-info-bg);   border-color: var(--callout-info-border); }
+  .callout-warn    { background: var(--callout-warn-bg);   border-color: var(--callout-warn-border); }
+  .callout-lesson  { background: var(--callout-lesson-bg); border-color: var(--callout-lesson-border); }
+  .callout-smell   { background: var(--callout-smell-bg);  border-color: var(--callout-smell-border); }
+
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .comparison > div { padding: 16px; background: var(--bg-alt); border-radius: 6px; border: 1px solid var(--border); }
+  .comparison h4 { font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-secondary); margin-bottom: 10px; }
+
+  @media (max-width: 640px) {
+    .comparison { grid-template-columns: 1fr; }
+    h1 { font-size: 1.8em; }
+  }
+
+  .stat-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 36px;
+  }
+  .stat-item { text-align: center; flex: 1; min-width: 100px; }
+  .stat-number { font-size: 1.8em; font-weight: 700; color: var(--accent); display: block; }
+  .stat-label { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+
+  hr { border: none; border-top: 1px solid var(--border-light); margin: 48px 0; }
+
+  .post-footer {
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 0.9em;
+  }
+</style>
+</head>
+<body>
+<article class="wrapper">
+
+<p class="post-meta">Hytale Modding &middot; February 2026</p>
+
+<h1>I Refactored a Beginner&rsquo;s Hytale Mod &mdash; Here&rsquo;s Every Lesson</h1>
+
+<p class="subtitle">
+A beginner built a working Vampire Survivors&ndash;style game mode for Hytale. Players fight wave after wave of mobs, collect life essence, and choose power-ups from a store. <strong>It shipped. It worked.</strong> Then I refactored it as a teaching exercise &mdash; not to add features, but to make the next feature possible. This is everything I changed, and why.
+</p>
+
+<div class="stat-bar">
+  <div class="stat-item"><span class="stat-number">39</span><span class="stat-label">Source files</span></div>
+  <div class="stat-item"><span class="stat-number">6</span><span class="stat-label">Work items</span></div>
+  <div class="stat-item"><span class="stat-number">1,447</span><span class="stat-label">Lines removed</span></div>
+  <div class="stat-item"><span class="stat-number">1,087</span><span class="stat-label">Lines added</span></div>
+  <div class="stat-item"><span class="stat-number">0</span><span class="stat-label">Features changed</span></div>
+</div>
+
+<nav class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#context">The starting point</a></li>
+    <li><a href="#zombie-code">Lesson 1: Delete dead code &mdash; don&rsquo;t let it haunt you</a></li>
+    <li><a href="#string-dispatch">Lesson 2: Strings are not types</a></li>
+    <li><a href="#copy-paste">Lesson 3: Copy-paste is a maintenance time bomb</a></li>
+    <li><a href="#parallel-maps">Lesson 4: When 17 maps share a key, you need one object</a></li>
+    <li><a href="#static-config">Lesson 5: 45 static volatile fields is not &ldquo;configuration&rdquo;</a></li>
+    <li><a href="#uncached-singleton">Lesson 6: Cache your references</a></li>
+    <li><a href="#magic-numbers">Lesson 7: Magic numbers that should be config</a></li>
+    <li><a href="#principles">The principles behind the changes</a></li>
+  </ol>
+</nav>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="context">The starting point</h2>
+
+<p>
+I want to start by being honest about what this mod got right. The <a href="https://github.com/TheFadingTime/Test1">original codebase</a> is a functional Hytale server mod. Players can connect, fight mobs that spawn in waves, collect life essence to level up, choose from 9 different power-ups in a store UI, and face boss enemies on milestone waves. The whole thing runs server-side on Hytale&rsquo;s ECS (Entity Component System) architecture, which is not a trivial platform to work with.
+</p>
+
+<p>
+<strong>Shipping working software is a real accomplishment</strong>, especially as a beginner, especially on a game engine with limited public documentation. I want to be clear about that before we dissect what could be improved.
+</p>
+
+<p>
+But &ldquo;working&rdquo; and &ldquo;maintainable&rdquo; are different things. The original code has patterns that would make any future change &mdash; adding a new power-up, tweaking mob balance, fixing a reconnect bug &mdash; significantly harder than it needs to be. Some of these patterns are classic beginner mistakes. Others are hallmarks of AI-generated code, where a language model solves each problem locally without seeing the shape of the whole system.
+</p>
+
+<p>
+I ran a systematic analysis across 38 code quality categories and identified 6 concrete work items. I refactored the codebase, added teaching comments explaining every decision, and wrote this post to walk through the lessons. If you&rsquo;re new to Hytale modding &mdash; or to Java in general &mdash; these patterns will save you real debugging time later.
+</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="zombie-code">Lesson 1: Delete dead code &mdash; don&rsquo;t let it haunt you</h2>
+
+<p>
+The codebase contained an entire class &mdash; <code>PowerUpManager.java</code>, 217 lines &mdash; that was never instantiated by anything. Not by the main mod entry point. Not by tests. Not by any other class. Zero callers. The class was a full duplicate of <code>PowerUpApplicator.java</code>, which was the version actually wired into the game.
+</p>
+
+<p>Both classes had the same <code>applyChoice()</code> method, the same 8 <code>clamp*()</code> methods, and even the same <code>PowerState</code> inner class:</p>
+
+<div class="comparison">
+  <div>
+    <h4>PowerUpManager.java (dead)</h4>
+<pre><code>// Never instantiated. Zero callers.
+public boolean applyChoice(
+    @Nonnull PowerState state,
+    @Nonnull String choice) {
+  if ("extra_projectile".equals(choice)) {
+    state.projectileCount =
+      this.clampProjectileCount(
+        state.projectileCount + 1);
+    return false;
+  }
+  if ("fire_rate".equals(choice)) {
+    state.fireRateMultiplier =
+      this.clampFireRate(
+        state.fireRateMultiplier
+        * this.fireRateMultiplierPerUpgrade);
+    return false;
+  }
+  // ... 7 more identical branches
+}</code></pre>
+  </div>
+  <div>
+    <h4>PowerUpApplicator.java (live)</h4>
+<pre><code>// Actually used by the game.
+public boolean applyChoice(
+    @Nonnull PowerState state,
+    @Nonnull String choice) {
+  if ("extra_projectile".equals(choice)) {
+    state.projectileCount =
+      clampProjectileCount(
+        state.projectileCount + 1);
+    return false;
+  }
+  if ("fire_rate".equals(choice)) {
+    state.fireRateMultiplier =
+      clampFireRate(
+        state.fireRateMultiplier
+        * this.fireRateMultiplierPerUpgrade);
+    return false;
+  }
+  // ... 7 more identical branches
+}</code></pre>
+  </div>
+</div>
+
+<p>
+Inside the dead class, there was even a deprecated compatibility shim &mdash; a method whose only job was to call another method on the same class that nothing calls:
+</p>
+
+<pre><code>@Deprecated
+public boolean applyLegacyUpgrade(@Nonnull PowerState state,
+                                  @Nonnull String choice) {
+    // Old compatibility shim for command/tests that still call the legacy path.
+    return this.applyChoice(state, choice);
+}</code></pre>
+
+<p>
+And in <code>ConfigManager.java</code>, another deprecated shim that just forwarded to <code>load()</code>:
+</p>
+
+<pre><code>@Deprecated
+public static synchronized void initialize(Path pluginFilePath, Logger logger) {
+    // Migration note: old code called MobSpawnConfig.initialize(...)
+    load(pluginFilePath, logger);
+}</code></pre>
+
+<p>
+What probably happened: the developer wrote <code>PowerUpManager</code>, then wrote a better version (<code>PowerUpApplicator</code>), wired the new one into the game, and... never deleted the old one. Renamed <code>MobSpawnConfig</code> to <code>ConfigManager</code> and... left a forwarding method behind &ldquo;just in case.&rdquo;
+</p>
+
+<p>
+This is <strong>zombie code</strong>. It looks alive in your editor &mdash; it shows up in searches, it appears in your project tree, it gets scanned by your IDE &mdash; but it&rsquo;s dead at runtime. And it&rsquo;s actively harmful:
+</p>
+
+<ul>
+  <li>A new developer sees two power-up classes and has to figure out which one is real</li>
+  <li>A search for &ldquo;fire_rate&rdquo; returns hits in both classes, doubling the noise</li>
+  <li>Someone might &ldquo;fix a bug&rdquo; in the dead class, wasting hours before realizing it&rsquo;s not used</li>
+</ul>
+
+<p><strong>What we did:</strong> Deleted <code>PowerUpManager.java</code> entirely. Deleted the deprecated <code>initialize()</code> shim. 217+ lines gone, zero behavior change.</p>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>Don&rsquo;t deprecate code that has zero callers &mdash; delete it.</strong> Version control already preserves the history. If you need the old code back, <code>git log</code> can find it. Your codebase should only contain code that&rsquo;s alive. Deprecation is for code that <em>external consumers</em> depend on and need time to migrate away from. For your own internal code with zero callers? Just delete it.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="string-dispatch">Lesson 2: Strings are not types</h2>
+
+<p>
+This was the single most impactful change in terms of future safety. The original code used raw strings to identify power-up types. The string <code>"fire_rate"</code> appeared in <strong>at least 4 separate files</strong>, in if/else chains like this:
+</p>
+
+<div class="code-filename">PowerUpApplicator.java &mdash; applyChoice() (original)</div>
+<pre><code>if ("extra_projectile".equals(choice)) {
+    state.projectileCount = clampProjectileCount(state.projectileCount + 1);
+    return false;
+}
+if ("fire_rate".equals(choice)) {
+    state.fireRateMultiplier = clampFireRate(
+        state.fireRateMultiplier * this.fireRateMultiplierPerUpgrade);
+    return false;
+}
+if ("pickup_range".equals(choice)) { ... }
+if ("bounce".equals(choice)) { ... }
+if ("weapon_damage".equals(choice)) { ... }
+if ("max_health".equals(choice)) { ... }
+if ("move_speed".equals(choice)) { ... }
+if ("lucky".equals(choice)) { ... }
+if ("projectile_rain".equals(choice)) { ... }</code></pre>
+
+<p>
+This same 9-branch if/else chain appeared in <code>PowerUpApplicator.applyChoice()</code>, <code>PowerUpApplicator.getChoiceRank()</code>, <code>PowerUpManager.applyChoice()</code> (the zombie class), and <code>PlayerProgressionManager.getPowerChoiceLabel()</code>. That last one is particularly telling:
+</p>
+
+<div class="code-filename">PlayerProgressionManager.java &mdash; getPowerChoiceLabel() (original)</div>
+<pre><code>private String getPowerChoiceLabel(@Nonnull String choice) {
+    if ("extra_projectile".equals(choice)) { return "EXTRA PROJECTILE"; }
+    if ("fire_rate".equals(choice)) { return "FIRE RATE"; }
+    if ("pickup_range".equals(choice)) { return "PICKUP RANGE"; }
+    if ("bounce".equals(choice)) { return "BOUNCE"; }
+    if ("weapon_damage".equals(choice)) { return "WEAPON DAMAGE"; }
+    if ("max_health".equals(choice)) { return "MORE HEALTH"; }
+    if ("move_speed".equals(choice)) { return "MOVE SPEED"; }
+    if ("lucky".equals(choice)) { return "LUCKY"; }
+    if ("projectile_rain".equals(choice)) { return "LAST RESORT..."; }
+    return null;
+}</code></pre>
+
+<p>
+Count it: 9 power-up types, compared as strings, across 4+ files. That&rsquo;s 36+ string comparisons that all have to be spelled identically. A single typo &mdash; <code>"fire_Rate"</code> instead of <code>"fire_rate"</code> &mdash; would silently break a power-up at runtime with zero compiler warning. The code would just... not match, fall through, and do nothing. Good luck finding that bug.
+</p>
+
+<div class="callout callout-smell">
+  <span class="callout-label">Code smell: &ldquo;Stringly-typed&rdquo; enumerations</span>
+  <p>This is one of the most common anti-patterns in beginner code and AI-generated code. If you find yourself writing if/else chains comparing the same string variable to a fixed set of values, that&rsquo;s a strong signal you need an enum. The values are known at compile time &mdash; let the compiler enforce them.</p>
+</div>
+
+<p>
+We replaced all of it with a single enum:
+</p>
+
+<div class="code-filename">PowerUpType.java (new file)</div>
+<pre><code>public enum PowerUpType {
+    EXTRA_PROJECTILE("extra_projectile", "EXTRA PROJECTILE"),
+    FIRE_RATE("fire_rate", "FIRE RATE"),
+    PICKUP_RANGE("pickup_range", "PICKUP RANGE"),
+    BOUNCE("bounce", "BOUNCE"),
+    WEAPON_DAMAGE("weapon_damage", "WEAPON DAMAGE"),
+    MAX_HEALTH("max_health", "MORE HEALTH"),
+    MOVE_SPEED("move_speed", "MOVE SPEED"),
+    LUCKY("lucky", "LUCKY"),
+    PROJECTILE_RAIN("projectile_rain", "LAST RESORT...");
+
+    private final String key;   // wire format for BsonDocument
+    private final String label; // display text for store UI
+
+    // ... constructor, key(), label() ...
+
+    @Nullable
+    public static PowerUpType fromKey(@Nullable String key) {
+        if (key == null || key.isBlank()) { return null; }
+        String normalized = key.trim().toLowerCase(Locale.ROOT);
+        for (PowerUpType type : values()) {
+            if (type.key.equals(normalized)) { return type; }
+        }
+        return null;
+    }
+}</code></pre>
+
+<p>
+Now <code>applyChoice()</code> is a switch on the enum, and <code>getPowerChoiceLabel()</code> is just <code>type.label()</code>:
+</p>
+
+<div class="comparison">
+  <div>
+    <h4>Before: string dispatch</h4>
+<pre><code>// 4+ files, 36+ comparisons
+if ("fire_rate".equals(choice)) {
+  state.fireRateMultiplier = ...;
+}
+// typo = silent runtime bug</code></pre>
+  </div>
+  <div>
+    <h4>After: enum switch</h4>
+<pre><code>// 1 enum, 1 switch per method
+switch (type) {
+  case FIRE_RATE:
+    state.fireRateMultiplier = ...;
+}
+// typo = won't compile</code></pre>
+  </div>
+</div>
+
+<h3>But the UI sends strings over the wire</h3>
+
+<p>
+The Hytale UI communicates power-up selections via <code>BsonDocument</code> &mdash; essentially JSON. You can&rsquo;t change the wire format. So how do you use an enum internally while keeping string compatibility externally?
+</p>
+
+<p>
+<strong>Parse at the boundary.</strong> The moment a string enters your code from the UI, convert it to the enum. From that point on, everything is type-safe:
+</p>
+
+<pre><code>// Where the UI event arrives — the ONLY place we touch raw strings:
+String rawChoice = bsonData.getString("choice").getValue();
+PowerUpType type = PowerUpType.fromKey(rawChoice);
+if (type == null) {
+    logger.warning("Unknown power-up choice: " + rawChoice);
+    return;
+}
+// From here on, it's type-safe. Typos can't happen.
+applicator.applyChoice(state, type);</code></pre>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>If you have a fixed set of values known at compile time, use an enum.</strong> You get compile-time typo detection, IDE autocomplete, exhaustive switch warnings (the compiler tells you if you forget a case), and a single source of truth. Parse strings into enums at the boundary where external data enters your code, and use the enum everywhere else.</p>
+</div>
+
+<div class="callout callout-info">
+  <span class="callout-label">For Hytale modders</span>
+  <p>This pattern works everywhere Hytale sends data as <code>BsonDocument</code>: command arguments, UI events, config files, network packets. Parse early, use types everywhere else. The <code>key()</code> method on the enum preserves the wire format when you need to send data back.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="copy-paste">Lesson 3: Copy-paste is a maintenance time bomb</h2>
+
+<p>
+Here&rsquo;s a 15-line method that appeared in the original codebase. See if you can tell which file it&rsquo;s from:
+</p>
+
+<pre><code>private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent,
+                                       @Nonnull World world) {
+    Ref&lt;EntityStore&gt; playerRef = playerRefComponent.getReference();
+    if (playerRef == null || !playerRef.isValid()) { return false; }
+    Store&lt;EntityStore&gt; store = playerRef.getStore();
+    if (store == null) { return false; }
+    World currentWorld = ((EntityStore) store.getExternalData()).getWorld();
+    if (currentWorld == null) { return false; }
+    WorldConfig currentConfig = currentWorld.getWorldConfig();
+    WorldConfig targetConfig = world.getWorldConfig();
+    if (currentConfig != null && targetConfig != null
+        && currentConfig.getUuid() != null
+        && targetConfig.getUuid() != null) {
+        return currentConfig.getUuid().equals(targetConfig.getUuid());
+    }
+    String currentName = currentWorld.getName();
+    String targetName = world.getName();
+    if (currentName != null && targetName != null) {
+        return currentName.equals(targetName);
+    }
+    return currentWorld == world;
+}</code></pre>
+
+<p>
+Trick question. It&rsquo;s from <strong>three</strong> files: <code>PlayerProgressionManager.java</code>, <code>StoreSessionManager.java</code>, and <code>HudUpdateService.java</code>. Character-for-character identical in all three.
+</p>
+
+<p>
+The same was true for <code>executeIfTicking()</code> (a safety wrapper that prevents crashes when a world is shutting down) &mdash; copied identically into the same three files. And <code>getWorldKey()</code> was duplicated between <code>PlayerProgressionManager</code> and <code>MobWaveSpawner</code>.
+</p>
+
+<p>
+Here&rsquo;s the full duplication inventory:
+</p>
+
+<table style="width:100%; border-collapse:collapse; margin-bottom:24px; font-size:0.92em;">
+  <thead>
+    <tr style="border-bottom:2px solid var(--border); text-align:left;">
+      <th style="padding:8px 12px;">Method</th>
+      <th style="padding:8px 12px;">Files</th>
+      <th style="padding:8px 12px;">Identical?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td style="padding:8px 12px;"><code>isPlayerInWorld()</code></td>
+      <td style="padding:8px 12px;">PlayerProgressionManager, StoreSessionManager, HudUpdateService</td>
+      <td style="padding:8px 12px;">Yes, character-for-character</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td style="padding:8px 12px;"><code>executeIfTicking()</code></td>
+      <td style="padding:8px 12px;">PlayerProgressionManager, StoreSessionManager, HudUpdateService</td>
+      <td style="padding:8px 12px;">Yes, character-for-character</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td style="padding:8px 12px;"><code>getWorldKey()</code></td>
+      <td style="padding:8px 12px;">PlayerProgressionManager, MobWaveSpawner</td>
+      <td style="padding:8px 12px;">Yes</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td style="padding:8px 12px;"><code>applyChoice()</code></td>
+      <td style="padding:8px 12px;">PowerUpManager, PowerUpApplicator</td>
+      <td style="padding:8px 12px;">Yes (same if-chain)</td>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border-light);">
+      <td style="padding:8px 12px;"><code>clamp*()</code> (8 methods)</td>
+      <td style="padding:8px 12px;">PowerUpManager, PowerUpApplicator</td>
+      <td style="padding:8px 12px;">Yes</td>
+    </tr>
+    <tr>
+      <td style="padding:8px 12px;"><code>PowerState</code> inner class</td>
+      <td style="padding:8px 12px;">PowerUpManager, PowerUpApplicator</td>
+      <td style="padding:8px 12px;">Yes, entire class</td>
+    </tr>
+  </tbody>
+</table>
+
+<p>
+Copy-pasted code works fine on day one. The problem is day 30, when you find a subtle bug in <code>isPlayerInWorld()</code> &mdash; say the UUID comparison doesn&rsquo;t handle a specific edge case &mdash; and you fix it in <code>PlayerProgressionManager</code> but forget about the copies in <code>StoreSessionManager</code> and <code>HudUpdateService</code>. Or day 60, when a new developer sees the method in one file and copies it into a fourth.
+</p>
+
+<p>
+We extracted the shared methods into two new files:
+</p>
+
+<div class="code-filename">WorldUtils.java (new file)</div>
+<pre><code>public final class WorldUtils {
+
+    private WorldUtils() { }  // static utility — no instances
+
+    /** Check if a player is still in the expected world. */
+    public static boolean isPlayerInWorld(@Nonnull PlayerRef playerRef,
+                                          @Nonnull World world) {
+        // ... one copy of the 15-line method
+    }
+
+    /** Get a stable key for world lookups (UUID -> name -> "default"). */
+    public static String getWorldKey(@Nonnull Store&lt;EntityStore&gt; store) {
+        // ... one copy
+    }
+
+    /** Execute on world thread, safely handling shutdown. */
+    public static void executeIfTicking(@Nonnull World world,
+                                         @Nonnull Runnable action,
+                                         @Nonnull HytaleLogger logger) {
+        // ... one copy
+    }
+}</code></pre>
+
+<p>
+The delayed-task scheduling pattern (schedule, track, untrack, cancel) was also duplicated between <code>PlayerProgressionManager</code> and <code>StoreSessionManager</code>, operating on an identical <code>ConcurrentMap&lt;UUID, ConcurrentLinkedQueue&lt;ScheduledFuture&lt;?&gt;&gt;&gt;</code> in both files. We extracted it:
+</p>
+
+<div class="code-filename">WorldTaskScheduler.java (new file)</div>
+<pre><code>public final class WorldTaskScheduler {
+    private final HytaleLogger logger;
+    private final ConcurrentMap&lt;UUID, ConcurrentLinkedQueue&lt;ScheduledFuture&lt;?&gt;&gt;&gt;
+        delayedTasksByPlayer = new ConcurrentHashMap&lt;&gt;();
+
+    /** Schedule a delayed task with automatic player-presence checking. */
+    public ScheduledFuture&lt;?&gt; schedule(@Nonnull World world,
+                                        @Nonnull PlayerRef playerRef,
+                                        @Nonnull Runnable action,
+                                        long delayMillis) { ... }
+
+    /** Cancel all pending tasks for a disconnecting player. */
+    public void cancelAll(@Nonnull UUID playerId) { ... }
+}</code></pre>
+
+<h3>Why a utility class, not a base class?</h3>
+
+<p>
+A common beginner instinct is: &ldquo;These three classes share code, so they should extend a common base class.&rdquo; Don&rsquo;t. <code>PlayerProgressionManager</code>, <code>StoreSessionManager</code>, and <code>HudUpdateService</code> are not different <em>kinds</em> of the same thing. They just happen to need the same helper function. Using inheritance solely to share code is called <strong>implementation inheritance abuse</strong> and it creates tight coupling.
+</p>
+
+<p>
+A static utility class (private constructor, static methods) is the right tool for shared helper functions that don&rsquo;t represent a common contract. <code>WorldTaskScheduler</code> is different &mdash; it has instance state &mdash; so each caller gets their own instance. This is intentional: cancelling store tasks shouldn&rsquo;t cancel progression tasks.
+</p>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>Extract on the second use, not the first.</strong> One copy is fine &mdash; don&rsquo;t pre-extract things that might only be used once (YAGNI). But the moment you paste the same logic into a second file, extract it to a shared location. After that, new callers get it for free, and bug fixes propagate to everyone.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="parallel-maps">Lesson 4: When 17 maps share a key, you need one object</h2>
+
+<p>
+<code>MobWaveSpawner</code> tracked per-owner game state across <strong>17 separate <code>ConcurrentHashMap</code> instances</strong>, all keyed by the same <code>UUID</code>:
+</p>
+
+<div class="code-filename">MobWaveSpawner.java (original)</div>
+<pre><code>private final ConcurrentMap&lt;UUID, Object&gt; ownerLocks = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Integer&gt; waveCounts = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Boolean&gt; bossActive = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Ref&lt;EntityStore&gt;&gt; bossRefs = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Set&lt;UUID&gt;&gt; playersByOwner = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Set&lt;UUID&gt;&gt; participantsByOwner = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Store&lt;EntityStore&gt;&gt; storeByOwner = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Boolean&gt; rejoinHold = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, String&gt; worldByOwner = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Long&gt; nextSpawnAt = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Long&gt; disconnectHandledAt = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Long&gt; rejoinHoldUntilByOwner = new ConcurrentHashMap&lt;&gt;();
+private final ConcurrentMap&lt;UUID, Integer&gt; taskGenerationByOwner = new ConcurrentHashMap&lt;&gt;();
+// ... and more</code></pre>
+
+<p>
+Every time a player disconnected, cleanup meant manually removing the owner&rsquo;s entry from <em>every single map</em>:
+</p>
+
+<div class="code-filename">MobWaveSpawner.java &mdash; clearOwnerRuntimeState() (original)</div>
+<pre><code>private void clearOwnerRuntimeState(@Nonnull UUID ownerId) {
+    this.cancelTask(ownerId);
+    synchronized (this.getOwnerLock(ownerId)) {
+        this.waveCounts.remove(ownerId);
+        this.bossActive.remove(ownerId);
+        this.bossRefs.remove(ownerId);
+        this.rejoinHold.remove(ownerId);
+        this.rejoinHoldUntilByOwner.remove(ownerId);
+        this.worldByOwner.remove(ownerId);
+        this.storeByOwner.remove(ownerId);
+        this.nextSpawnAt.remove(ownerId);
+        this.taskGenerationByOwner.remove(ownerId);
+    }
+    this.ownerLocks.remove(ownerId);
+}</code></pre>
+
+<p>
+10 individual <code>.remove()</code> calls. Forget one and you have a memory leak. Add a new per-owner field and you have to remember to update this method. This is a maintenance trap.
+</p>
+
+<div class="callout callout-smell">
+  <span class="callout-label">Code smell: Parallel maps</span>
+  <p>This pattern is extremely common in AI-generated code. The AI sees &ldquo;I need a wave count per owner&rdquo; and writes a new ConcurrentHashMap. Then &ldquo;I need a boss ref per owner&rdquo; &mdash; another map. It solves each problem locally without seeing the shape of the whole data model. Before long you have 17 maps and a cleanup method that reads like a phone book.</p>
+</div>
+
+<p>
+We grouped all per-owner state into a single inner class:
+</p>
+
+<div class="code-filename">MobWaveSpawner.java &mdash; OwnerWaveState (new inner class)</div>
+<pre><code>static final class OwnerWaveState {
+    final AtomicInteger waveCount = new AtomicInteger(0);
+    volatile boolean bossActive;
+    volatile Ref&lt;EntityStore&gt; bossRef;
+    volatile boolean rejoinHold;
+    volatile long rejoinHoldUntil;
+    volatile String worldKey;
+    volatile Store&lt;EntityStore&gt; store;
+    volatile long nextSpawnAt;
+    final AtomicInteger taskGeneration = new AtomicInteger(0);
+    final Set&lt;UUID&gt; activeMembers = ConcurrentHashMap.newKeySet();
+    final Set&lt;UUID&gt; allParticipants = ConcurrentHashMap.newKeySet();
+}</code></pre>
+
+<p>
+11 separate maps collapsed into one:
+</p>
+
+<pre><code>// AFTER: one map to rule them all
+private final ConcurrentMap&lt;UUID, OwnerWaveState&gt; ownerStates =
+    new ConcurrentHashMap&lt;&gt;();</code></pre>
+
+<p>
+And cleanup became trivial:
+</p>
+
+<pre><code>// AFTER
+this.ownerStates.remove(ownerId);</code></pre>
+
+<p>
+One line. Can&rsquo;t forget a field. Can&rsquo;t leak memory. The state object is also its own synchronization lock, which eliminated the separate <code>ownerLocks</code> map entirely.
+</p>
+
+<h3>A note on threading</h3>
+
+<p>
+You might notice the field declarations use <code>volatile</code> for primitives and <code>AtomicInteger</code> for counters. This matters because Hytale&rsquo;s world thread writes these fields while the <code>ScheduledExecutor</code> thread pool reads them. Without <code>volatile</code>, Java&rsquo;s memory model allows the reader thread to see stale values &mdash; it can keep using a cached copy from its CPU core indefinitely.
+</p>
+
+<p>
+<code>AtomicInteger</code> is used specifically for <code>waveCount</code> and <code>taskGeneration</code> because they need <strong>atomic read-modify-write</strong>. A simple <code>volatile int</code> is not safe for <code>count++</code> &mdash; the read and the write aren&rsquo;t a single operation, so two threads can read the same value and both write the same incremented result.
+</p>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>When multiple maps are keyed by the same ID and always read/written together, they should be one object in one map.</strong> You get atomic cleanup (remove the object, not N entries), self-documenting state (&ldquo;what data does an owner have?&rdquo; is one class), and you literally cannot forget a field during cleanup because there&rsquo;s nothing to forget.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="static-config">Lesson 5: 45 static volatile fields is not &ldquo;configuration&rdquo;</h2>
+
+<p>
+This was the largest change by line count, and the most important one architecturally. <code>PlayerProgressionManager</code> opened with <strong>45 static volatile fields</strong> that mirrored every single field from <code>LifeEssenceConfig</code>:
+</p>
+
+<div class="code-filename">PlayerProgressionManager.java (original, lines 72&ndash;116)</div>
+<pre><code>private static volatile int ESSENCE_PER_LEVEL_BASE = 15;
+private static volatile int ESSENCE_PER_LEVEL_INCREMENT = 5;
+private static volatile int ESSENCE_PER_LEVEL_MAX = 15;
+private static volatile String DEFAULT_BOSS_NAME = "Giant Skeleton";
+private static volatile float STORE_SLOWMO_FACTOR = 0.2f;
+private static volatile int STORE_OPEN_LEVEL_START = 5;
+private static volatile int STORE_OPEN_LEVEL_INTERVAL = 5;
+private static volatile int STORE_OPEN_LEVEL_MAX = 50;
+private static volatile int MAX_FIRE_RATE_UPGRADES = 4;
+private static volatile float FIRE_RATE_MULTIPLIER_PER_UPGRADE = 1.15f;
+private static volatile float MAX_FIRE_RATE_MULTIPLIER = (float)Math.pow(1.15f, 4.0);
+private static volatile int MAX_PICKUP_RANGE_UPGRADES = 5;
+private static volatile float PICKUP_RANGE_PER_UPGRADE = 10.0f;
+private static volatile float MAX_PICKUP_RANGE_BONUS = 50.0f;
+private static volatile int MAX_EXTRA_PROJECTILES = 10;
+private static volatile int MAX_BOUNCE_UPGRADES = 3;
+private static volatile int MAX_WEAPON_DAMAGE_UPGRADES = 2;
+private static volatile float WEAPON_DAMAGE_BONUS_PER_UPGRADE = 15.0f;
+private static volatile int MAX_HEALTH_UPGRADES = 3;
+private static volatile float HEALTH_BONUS_PER_UPGRADE = 20.0f;
+private static volatile int MAX_SPEED_UPGRADES = 1;
+private static volatile int MAX_PROJECTILE_RAIN_UPGRADES = 1;
+private static volatile int MAX_LUCKY_UPGRADES = 5;
+// ... 22 more fields ...</code></pre>
+
+<p>
+Then a massive <code>applyConfig()</code> method copied every field from the config object one by one:
+</p>
+
+<div class="code-filename">PlayerProgressionManager.java &mdash; applyConfig() (original, lines 148&ndash;192)</div>
+<pre><code>private static synchronized void applyConfig(@Nonnull LifeEssenceConfig config) {
+    ESSENCE_PER_LEVEL_BASE = config.essencePerLevelBase;
+    ESSENCE_PER_LEVEL_INCREMENT = config.essencePerLevelIncrement;
+    ESSENCE_PER_LEVEL_MAX = config.essencePerLevelMax;
+    DEFAULT_BOSS_NAME = config.defaultBossName;
+    STORE_SLOWMO_FACTOR = config.storeSlowmoFactor;
+    STORE_OPEN_LEVEL_START = config.storeOpenLevelStart;
+    STORE_OPEN_LEVEL_INTERVAL = config.storeOpenLevelInterval;
+    STORE_OPEN_LEVEL_MAX = config.storeOpenLevelMax;
+    MAX_FIRE_RATE_UPGRADES = config.maxFireRateUpgrades;
+    FIRE_RATE_MULTIPLIER_PER_UPGRADE = config.fireRateMultiplierPerUpgrade;
+    MAX_FIRE_RATE_MULTIPLIER = (float)Math.pow(
+        FIRE_RATE_MULTIPLIER_PER_UPGRADE, MAX_FIRE_RATE_UPGRADES);
+    // ... 30 more lines of field-by-field copying ...
+    JOIN_FORCED_WEATHER_ID = config.joinForcedWeatherId;
+}</code></pre>
+
+<p>
+Stop and think about what&rsquo;s happening here. <code>LifeEssenceConfig</code> is already a perfectly good config object with all these values as <code>public final</code> fields. The code loads the config, then <em>copies every single field to a static variable</em>, creating <strong>two sources of truth</strong> for every value. The config object says <code>essencePerLevelBase = 15</code>. The static field says <code>ESSENCE_PER_LEVEL_BASE = 15</code>. Which one does the rest of the code read? It depends on which line you&rsquo;re looking at.
+</p>
+
+<p>
+This is the kind of pattern that happens when a developer doesn&rsquo;t trust that an object reference can be the single source &mdash; so they flatten everything into globals &ldquo;just to be safe.&rdquo;
+</p>
+
+<p><strong>What we did:</strong> Deleted all 45 static volatile fields. Deleted the entire <code>applyConfig()</code> method. Stored a single volatile reference:</p>
+
+<pre><code>// AFTER: one reference, one source of truth
+private volatile LifeEssenceConfig config;</code></pre>
+
+<p>
+Every place that read <code>STORE_SLOWMO_FACTOR</code> now reads <code>this.config.storeSlowmoFactor</code>. Hot-reload just swaps the reference:
+</p>
+
+<pre><code>public void reloadConfig() {
+    LifeEssenceConfig newConfig = LifeEssenceConfig.load(
+        this.plugin.getFile(), HytaleMod.LOGGER);
+    this.config = newConfig;
+    this.levelingSystem = LevelingSystem.fromConfig(newConfig);
+    this.powerUpApplicator = PowerUpApplicator.fromConfig(newConfig);
+    // ... propagate to downstream systems
+}</code></pre>
+
+<div class="callout callout-warn">
+  <span class="callout-label">Why volatile?</span>
+  <p>Config is loaded on one thread (startup or file watcher) and read on another (the world tick thread). Java&rsquo;s memory model doesn&rsquo;t guarantee that writes on one thread are visible to another unless you use <code>volatile</code>, <code>synchronized</code>, or <code>Atomic*</code>. A <code>volatile</code> reference to an immutable config object is the simplest correct approach. The reference swap is atomic, and since <code>LifeEssenceConfig</code>&rsquo;s fields are all <code>final</code>, any thread that sees the new reference is guaranteed to see all the fields fully initialized.</p>
+</div>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>Don&rsquo;t copy config fields into static variables.</strong> Keep one immutable config object and read from it directly. You get a single source of truth, trivial hot-reload (just swap the reference), and you delete the entire 45-line <code>applyConfig()</code> method that would need updating every time you add a config field.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="uncached-singleton">Lesson 6: Cache your references</h2>
+
+<p>
+<code>PowerUpStorePage.build()</code> is called every time the power-up store opens for a player. Here&rsquo;s what the original code looked like:
+</p>
+
+<div class="code-filename">PowerUpStorePage.java &mdash; build() (original)</div>
+<pre><code>int fireRateMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxFireRateUpgrades();
+int pickupRangeMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxPickupRangeUpgrades();
+int extraProjectileMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxExtraProjectileUpgrades();
+int bounceMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxBounceUpgrades();
+int weaponDamageMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxWeaponDamageUpgrades();
+int healthMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxHealthUpgrades();
+int speedMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxSpeedUpgrades();
+int luckyMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxLuckyUpgrades();
+int projectileRainMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxProjectileRainUpgrades();
+if (playerId != null) {
+    fireRateMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasFireRatePower(playerId, store);
+    pickupRangeMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasPickupRangePower(playerId, store);
+    extraProjectileMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasExtraProjectilePower(playerId, store);
+    fireRateRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getFireRateRank(playerId, store);
+    pickupRangeRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getPickupRangeRank(playerId, store);
+    extraProjectileRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getExtraProjectileRank(playerId, store);
+    bounceRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getBounceRank(playerId, store);
+    weaponDamageRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getWeaponDamageRank(playerId, store);
+    healthRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getHealthRank(playerId, store);
+    speedRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getSpeedRank(playerId, store);
+    luckyRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getLuckyRank(playerId, store);
+    projectileRainRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getProjectileRainRank(playerId, store);
+}</code></pre>
+
+<p>
+That&rsquo;s <strong>22 calls</strong> to <code>HytaleMod.getInstance().getLifeEssenceLevelSystem()</code> in a single method. Each one traverses the singleton chain to get the same object. Plus 3 more calls in the event handler. 25 total, all to the same reference.
+</p>
+
+<p>
+The fix is one line:
+</p>
+
+<pre><code>// AFTER: cache the reference
+final var progression = HytaleMod.getInstance().getLifeEssenceLevelSystem();
+
+int fireRateMaxRank = progression.getMaxFireRateUpgrades();
+int pickupRangeMaxRank = progression.getMaxPickupRangeUpgrades();
+// ... clean, readable, no redundancy</code></pre>
+
+<p>
+This isn&rsquo;t primarily about performance &mdash; <code>getInstance()</code> is cheap. It&rsquo;s about <strong>readability</strong>. When every line is 80+ characters of boilerplate before you even reach the method you care about, it&rsquo;s hard to see what the code is actually doing. The signal is buried in noise.
+</p>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>When you call the same chain more than twice, cache it in a local variable.</strong> This isn&rsquo;t premature optimization &mdash; it&rsquo;s basic hygiene. It makes the code shorter, more readable, and communicates &ldquo;I&rsquo;m using one thing repeatedly&rdquo; instead of hiding that fact behind 25 identical expressions.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="magic-numbers">Lesson 7: Magic numbers that should be config</h2>
+
+<p>
+<code>VampireShooterSystem</code> is the ECS system that handles projectile firing &mdash; the core combat loop. Here&rsquo;s how it declared its gameplay constants:
+</p>
+
+<div class="code-filename">VampireShooterSystem.java (original)</div>
+<pre><code>private static final float FIRE_INTERVAL_SECONDS = 10.0f;
+private static final double PROJECTILE_CIRCLE_RADIUS = 0.9;
+private static final String FIREBALL_PROJECTILE_ID = "Skeleton_Mage_Corruption_Orb";
+private static final float FIREBALL_SPEED = 25.0f;
+private static final int BASE_BOUNCES = 0;
+private static final int MAX_BOUNCES = 3;
+private static final float FIREBALL_BOUNCE_SPEED_MULTIPLIER = 0.85f;
+private static final int MAX_PROJECTILES = 10;
+private static final String RAIN_PROJECTILE_PRIMARY_ID = "Fireball";
+private static final int PROJECTILE_RAIN_COUNT = 50;
+private static final double PROJECTILE_RAIN_RADIUS = 25.0;
+private static final double PROJECTILE_RAIN_HEIGHT = 40.0;
+private static final double PROJECTILE_RAIN_SPEED = 20.0;
+private static final float PROJECTILE_RAIN_BURST_DELAY_SECONDS = 0.6f;</code></pre>
+
+<p>
+14 gameplay-critical constants. Fire rate. Projectile speed. Bounce count. Rain radius. These are the core balance knobs of the entire game mode. And they&rsquo;re <code>private static final</code> &mdash; baked into the compiled class file. Changing any of them requires editing source code, recompiling the mod, restarting the server, and reconnecting clients.
+</p>
+
+<p>
+The irony is that the codebase <em>already had</em> a config loading system for other values. <code>LifeEssenceConfig</code> loaded power-up caps from a JSON file. But these projectile values were never exposed to it.
+</p>
+
+<p>
+We created <code>ProjectileConfig</code> and a corresponding <code>projectile.json</code> with all 14 values configurable and documented:
+</p>
+
+<div class="code-filename">projectile.json (new file)</div>
+<pre><code>{
+  // Primary shooting
+  "shooting": {
+    "fireIntervalSeconds": 10.0,
+    "maxProjectilesPerShot": 10,
+    "spawnYOffset": 1.0,
+    "spawnForwardOffset": 0.5,
+    "projectileCircleRadius": 0.9
+  },
+
+  // Fireball projectile
+  "fireball": {
+    "projectileId": "Skeleton_Mage_Corruption_Orb",
+    "speed": 25.0
+  },
+
+  // Bounce mechanics
+  "bounce": {
+    "baseBounces": 0,
+    "maxBounces": 3,
+    "speedMultiplier": 0.85    // speed retained per bounce
+  },
+
+  // Projectile rain ability
+  "rain": {
+    "projectileId": "Fireball",
+    "count": 50,
+    "radius": 25.0,
+    "height": 40.0,
+    "speed": 20.0,
+    "burstDelaySeconds": 0.6
+  }
+}</code></pre>
+
+<p>
+Now a server operator can tweak fire rate, projectile speed, or rain radius by editing a JSON file and triggering a hot-reload &mdash; no recompile, no restart. The values are grouped into logical sections with comments explaining the non-obvious ones.
+</p>
+
+<div class="callout callout-lesson">
+  <span class="callout-label">The lesson</span>
+  <p><strong>If a number affects gameplay balance, it belongs in a config file.</strong> <code>private static final</code> is for true constants &mdash; pi, HTTP status codes, buffer sizes. Game balance values will <em>always</em> need tuning. Make them configurable from the start and you skip dozens of compile-restart-test cycles during balance iteration.</p>
+</div>
+
+<div class="callout callout-info">
+  <span class="callout-label">For Hytale modders</span>
+  <p>Config files serve double duty: they&rsquo;re the runtime tuning mechanism <em>and</em> the documentation for server operators. Operators don&rsquo;t read your Java source. They open the JSON file and try to figure out what to change. Group related fields, add comments for non-obvious values, and provide sane defaults. The 30 minutes you spend organizing config saves hours for every person who runs your mod.</p>
+</div>
+
+<!-- ════════════════════════════════════════════ -->
+<h2 id="principles">The principles behind the changes</h2>
+
+<p>
+Every change above is an application of a small number of recurring principles. If you internalize these, you&rsquo;ll naturally avoid the patterns we had to fix.
+</p>
+
+<h3>1. Single source of truth</h3>
+<p>
+Every piece of data should live in exactly one place. If you find yourself copying values from one location to another &mdash; config to static fields, method to method, class to class &mdash; that&rsquo;s a signal to reference the original instead. Two copies means two opportunities for them to disagree.
+</p>
+
+<h3>2. Parse at the boundary, use types internally</h3>
+<p>
+External data arrives as strings, bytes, or JSON. Parse it into domain types (enums, value objects) at the <strong>earliest possible point</strong>, then use those types everywhere else. This confines &ldquo;stringly-typed&rdquo; fragility to one line of code instead of spreading it across your entire codebase.
+</p>
+
+<h3>3. Extract on the second use</h3>
+<p>
+One copy of code is fine. The moment you paste it into a second location, extract it. Don&rsquo;t pre-extract things that might only be used once (YAGNI). Don&rsquo;t wait until there are four copies and you can&rsquo;t remember which one has the bug fix.
+</p>
+
+<h3>4. State that belongs together should live together</h3>
+<p>
+If three maps are keyed by the same ID and always read/written as a group, make them one object in one map. This eliminates cleanup fragility, makes state self-documenting, and prevents the entire category of &ldquo;forgot to update one of N maps&rdquo; bugs.
+</p>
+
+<h3>5. Config is user-facing documentation</h3>
+<p>
+Server operators don&rsquo;t read your source code. Config files are their interface to your mod. Structure them clearly, group related fields, add comments for non-obvious values, and make sure every gameplay-affecting number is externalized.
+</p>
+
+<h3>6. Delete what&rsquo;s dead</h3>
+<p>
+If a class has zero callers, delete it. If a branch can never execute, delete it. Deprecation is for external APIs where consumers need migration time. For internal code with no callers, version control is your backup &mdash; your codebase should only carry living code.
+</p>
+
+<hr>
+
+<h2>The final diff</h2>
+
+<p>
+Here&rsquo;s what the complete refactoring looks like by the numbers:
+</p>
+
+<ul>
+  <li><strong>15 files modified</strong>, 5 files created, 1 file deleted</li>
+  <li><strong>1,087 lines added</strong> (shared utilities, enum, config restructuring, JSONC support)</li>
+  <li><strong>1,447 lines removed</strong> (zombie code, duplicated methods, 45 static fields, 17 parallel maps)</li>
+  <li><strong>Net: &minus;360 lines</strong> &mdash; while adding new capabilities (JSONC config comments, shared task scheduler, type-safe dispatch)</li>
+  <li><strong>Zero gameplay changes.</strong> Every feature works identically. Players notice nothing.</li>
+</ul>
+
+<p>
+That last point is the whole point. Good refactoring is invisible to users and transformative for developers. The next person who adds a power-up type will add one enum constant and one switch case, instead of hunting through 4+ files for every string comparison. The next person who needs a per-owner field will add it to <code>OwnerWaveState</code>, instead of creating map number 18. The next balance tweak will be a number in a JSON file, not a recompile.
+</p>
+
+<p>
+The real deliverable of a refactoring isn&rsquo;t cleaner code. It&rsquo;s <strong>faster future changes</strong>.
+</p>
+
+<div class="post-footer">
+  <p>
+    Written as a teaching companion to a refactoring of the
+    <a href="https://github.com/TheFadingTime/Test1">FadingTimeMod</a> project.
+    The original code was written by a beginner learning Hytale modding.
+    The refactored codebase includes inline teaching comments explaining each decision.
+    All changes preserved existing ECS API contracts and gameplay behavior.
+  </p>
+</div>
+
+</article>
+</body>
+</html>

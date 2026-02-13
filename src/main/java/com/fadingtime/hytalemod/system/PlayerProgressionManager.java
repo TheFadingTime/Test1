@@ -2,8 +2,8 @@ package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
-import com.fadingtime.hytalemod.config.LifeEssenceConfig;
 import com.fadingtime.hytalemod.config.ConfigManager;
+import com.fadingtime.hytalemod.config.LifeEssenceConfig;
 import com.fadingtime.hytalemod.spawner.MobWaveSpawner;
 import com.fadingtime.hytalemod.ui.BossBarHud;
 import com.fadingtime.hytalemod.ui.PowerUpStorePage;
@@ -32,7 +32,7 @@ import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.entity.LivingEntity;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.movement.MovementManager;
-import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
+
 import com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage;
 import com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
@@ -53,91 +53,71 @@ import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
 import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import org.bson.BsonDocument;
+
 
 public class PlayerProgressionManager {
-    private static volatile int ESSENCE_PER_LEVEL_BASE = 15;
-    private static volatile int ESSENCE_PER_LEVEL_INCREMENT = 5;
-    private static volatile int ESSENCE_PER_LEVEL_MAX = 15;
-    private static volatile String DEFAULT_BOSS_NAME = "Giant Skeleton";
-    private static volatile float STORE_SLOWMO_FACTOR = 0.2f;
-    private static volatile int STORE_OPEN_LEVEL_START = 5;
-    private static volatile int STORE_OPEN_LEVEL_INTERVAL = 5;
-    private static volatile int STORE_OPEN_LEVEL_MAX = 50;
-    private static volatile int MAX_FIRE_RATE_UPGRADES = 4;
-    private static volatile float FIRE_RATE_MULTIPLIER_PER_UPGRADE = 1.15f;
-    private static volatile float MAX_FIRE_RATE_MULTIPLIER = (float)Math.pow(1.15f, 4.0);
-    private static volatile int MAX_PICKUP_RANGE_UPGRADES = 5;
-    private static volatile float PICKUP_RANGE_PER_UPGRADE = 10.0f;
-    private static volatile float MAX_PICKUP_RANGE_BONUS = 50.0f;
-    private static volatile int MAX_EXTRA_PROJECTILES = 10;
-    private static volatile int MAX_BOUNCE_UPGRADES = 3;
-    private static volatile int MAX_WEAPON_DAMAGE_UPGRADES = 2;
-    private static volatile float WEAPON_DAMAGE_BONUS_PER_UPGRADE = 15.0f;
-    private static volatile int MAX_HEALTH_UPGRADES = 3;
-    private static volatile float HEALTH_BONUS_PER_UPGRADE = 20.0f;
-    private static volatile int MAX_SPEED_UPGRADES = 1;
-    private static volatile int MAX_PROJECTILE_RAIN_UPGRADES = 1;
-    private static volatile int MAX_LUCKY_UPGRADES = 5;
-    private static volatile int PROJECTILE_RAIN_BURSTS_ON_PICK = 2;
-    private static volatile float SPEED_BONUS_PER_UPGRADE = 0.05f;
-    private static volatile float MAX_SPEED_MULTIPLIER = 1.05f;
-    private static volatile float PLAYER_BASE_SPEED = 10.0f;
+    // DELETED: 45 static volatile fields that duplicated LifeEssenceConfig values.
+    //
+    // PRINCIPLE (Single Source of Truth):
+    //   Before: config values were loaded into LifeEssenceConfig, then COPIED into
+    //   45 static volatile fields here, then ALSO passed to PowerUpApplicator, LevelingSystem,
+    //   HudUpdateService, and StoreSessionManager constructors. That's 3+ copies of each value.
+    //
+    //   If someone forgot to update applyConfig() when adding a new config field,
+    //   the static copy would silently keep its default — a subtle bug.
+    //
+    //   After: we store the LifeEssenceConfig instance directly. When we need a config
+    //   value, we read it from config.fieldName. One source of truth.
+    //
+    // WHY the instance volatile IS correct here:
+    //   The config field is volatile because it IS swapped at runtime by reloadConfig()
+    //   (called from the config file watcher thread). volatile ensures the game thread
+    //   sees the new LifeEssenceConfig reference after a hot-reload.
+    //
+    // BEGINNER SMELL: "Config field sprawl" — copying every config field into class-level
+    //   fields instead of keeping a reference to the config object. This is extremely
+    //   common in AI-generated code because the AI doesn't track where values come from.
     private static final String PLAYER_HEALTH_BONUS_MODIFIER_ID = "PlayerHealthBonus";
     private static final String PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID = "PlayerSpeedStaminaBonus";
-    private static volatile float STAMINA_BONUS_PER_SPEED_UPGRADE = 20.0f;
-    private static volatile int LUCKY_ESSENCE_BONUS_PER_RANK = 1;
-    private static volatile long HUD_READY_DELAY_MS = 500L;
-    private static volatile long STORE_INPUT_GRACE_MS = 400L;
-    private static volatile String JOIN_WEAPON_ITEM_ID = "Weapon_Battleaxe_Mithril";
-    private static volatile String JOIN_SHORTBOW_ITEM_ID = "Weapon_Shortbow_Mithril";
-    private static volatile String JOIN_ARROW_ITEM_ID = "Weapon_Arrow_Crude";
-    private static volatile String JOIN_FOOD_ITEM_ID = "Food_Bread";
-    private static volatile String JOIN_ARMOR_HEAD_ITEM_ID = "Armor_Mithril_Head";
-    private static volatile String JOIN_ARMOR_CHEST_ITEM_ID = "Armor_Mithril_Chest";
-    private static volatile String JOIN_ARMOR_HANDS_ITEM_ID = "Armor_Mithril_Hands";
-    private static volatile String JOIN_ARMOR_LEGS_ITEM_ID = "Armor_Mithril_Legs";
-    private static volatile int JOIN_ARROW_QUANTITY = 200;
-    private static volatile int JOIN_FOOD_QUANTITY = 25;
-    private static volatile int JOIN_DEFAULT_DURABILITY = 5000;
-    private static volatile String JOIN_FORCED_WEATHER_ID = "Zone4_Lava_Fields";
     private final HytaleMod plugin;
-    private final LevelingSystem levelingSystem;
-    private final PowerUpApplicator powerUpApplicator;
+    private volatile LifeEssenceConfig config;
+    private volatile LevelingSystem levelingSystem;
+    private volatile PowerUpApplicator powerUpApplicator;
     private final PlayerDataRepository playerDataRepository;
     private final InventoryStateManager inventoryStateManager;
     private final GamePauseController gamePauseController;
     private final HudUpdateService hudUpdateService;
     private final StoreSessionManager storeSessionManager;
+    // WorldTaskScheduler replaces the old delayedTasksByPlayer map + 4 scheduling methods.
+    // This instance is separate from StoreSessionManager's scheduler — independent lifecycles.
+    private final WorldTaskScheduler taskScheduler;
     private final ConcurrentMap<UUID, Boolean> lastWasGameplayWorld = new ConcurrentHashMap<UUID, Boolean>();
     private final ConcurrentMap<UUID, Boolean> pendingHudClear = new ConcurrentHashMap<UUID, Boolean>();
-    private final ConcurrentMap<UUID, ConcurrentLinkedQueue<ScheduledFuture<?>>> delayedTasksByPlayer = new ConcurrentHashMap();
     private final ConcurrentMap<UUID, Long> disconnectHandledAt = new ConcurrentHashMap<UUID, Long>();
 
     public PlayerProgressionManager(@Nonnull HytaleMod plugin) {
         this.plugin = plugin;
         LifeEssenceConfig config = LifeEssenceConfig.load(plugin.getFile(), HytaleMod.LOGGER);
-        PlayerProgressionManager.applyConfig(config);
+        // Store the config instance instead of copying 45 fields into statics.
+        this.config = config;
         this.levelingSystem = LevelingSystem.fromConfig(config);
         this.powerUpApplicator = PowerUpApplicator.fromConfig(config);
         this.playerDataRepository = new PlayerDataRepository(plugin.getStateStoreManager(), this.levelingSystem, this.powerUpApplicator);
         this.inventoryStateManager = new InventoryStateManager();
-        this.gamePauseController = new GamePauseController(config.storeSlowmoFactor);
+        this.gamePauseController = new GamePauseController(config.storeSlowmoFactor, config.cameraDistance, config.cameraPositionLerpSpeed, config.cameraRotationLerpSpeed, config.cameraPitch);
         this.hudUpdateService = new HudUpdateService(plugin, config.defaultBossName, config.hudReadyDelayMs);
         this.storeSessionManager = new StoreSessionManager(plugin, this.gamePauseController, config.storeInputGraceMs);
+        this.taskScheduler = new WorldTaskScheduler(plugin.getLogger());
         plugin.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, this::onPlayerAddedToWorld);
         plugin.getEventRegistry().registerGlobal(DrainPlayerFromWorldEvent.class, this::onPlayerDrain);
         plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
@@ -145,50 +125,34 @@ public class PlayerProgressionManager {
         plugin.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, this::onInventoryChange);
     }
 
-    private static synchronized void applyConfig(@Nonnull LifeEssenceConfig config) {
-        ESSENCE_PER_LEVEL_BASE = config.essencePerLevelBase;
-        ESSENCE_PER_LEVEL_INCREMENT = config.essencePerLevelIncrement;
-        ESSENCE_PER_LEVEL_MAX = config.essencePerLevelMax;
-        DEFAULT_BOSS_NAME = config.defaultBossName;
-        STORE_SLOWMO_FACTOR = config.storeSlowmoFactor;
-        STORE_OPEN_LEVEL_START = config.storeOpenLevelStart;
-        STORE_OPEN_LEVEL_INTERVAL = config.storeOpenLevelInterval;
-        STORE_OPEN_LEVEL_MAX = config.storeOpenLevelMax;
-        MAX_FIRE_RATE_UPGRADES = config.maxFireRateUpgrades;
-        FIRE_RATE_MULTIPLIER_PER_UPGRADE = config.fireRateMultiplierPerUpgrade;
-        MAX_FIRE_RATE_MULTIPLIER = (float)Math.pow(FIRE_RATE_MULTIPLIER_PER_UPGRADE, MAX_FIRE_RATE_UPGRADES);
-        MAX_PICKUP_RANGE_UPGRADES = config.maxPickupRangeUpgrades;
-        PICKUP_RANGE_PER_UPGRADE = config.pickupRangePerUpgrade;
-        MAX_PICKUP_RANGE_BONUS = config.maxPickupRangeBonus;
-        MAX_EXTRA_PROJECTILES = config.maxExtraProjectiles;
-        MAX_BOUNCE_UPGRADES = config.maxBounceUpgrades;
-        MAX_WEAPON_DAMAGE_UPGRADES = config.maxWeaponDamageUpgrades;
-        WEAPON_DAMAGE_BONUS_PER_UPGRADE = config.weaponDamageBonusPerUpgrade;
-        MAX_HEALTH_UPGRADES = config.maxHealthUpgrades;
-        HEALTH_BONUS_PER_UPGRADE = config.healthBonusPerUpgrade;
-        MAX_SPEED_UPGRADES = config.maxSpeedUpgrades;
-        MAX_PROJECTILE_RAIN_UPGRADES = config.maxProjectileRainUpgrades;
-        MAX_LUCKY_UPGRADES = config.maxLuckyUpgrades;
-        PROJECTILE_RAIN_BURSTS_ON_PICK = config.projectileRainBurstsOnPick;
-        SPEED_BONUS_PER_UPGRADE = config.speedBonusPerUpgrade;
-        MAX_SPEED_MULTIPLIER = config.maxSpeedMultiplier;
-        PLAYER_BASE_SPEED = config.playerBaseSpeed;
-        STAMINA_BONUS_PER_SPEED_UPGRADE = config.staminaBonusPerSpeedUpgrade;
-        LUCKY_ESSENCE_BONUS_PER_RANK = config.luckyEssenceBonusPerRank;
-        HUD_READY_DELAY_MS = config.hudReadyDelayMs;
-        STORE_INPUT_GRACE_MS = config.storeInputGraceMs;
-        JOIN_WEAPON_ITEM_ID = config.joinWeaponItemId;
-        JOIN_SHORTBOW_ITEM_ID = config.joinShortbowItemId;
-        JOIN_ARROW_ITEM_ID = config.joinArrowItemId;
-        JOIN_FOOD_ITEM_ID = config.joinFoodItemId;
-        JOIN_ARMOR_HEAD_ITEM_ID = config.joinArmorHeadItemId;
-        JOIN_ARMOR_CHEST_ITEM_ID = config.joinArmorChestItemId;
-        JOIN_ARMOR_HANDS_ITEM_ID = config.joinArmorHandsItemId;
-        JOIN_ARMOR_LEGS_ITEM_ID = config.joinArmorLegsItemId;
-        JOIN_ARROW_QUANTITY = config.joinArrowQuantity;
-        JOIN_FOOD_QUANTITY = config.joinFoodQuantity;
-        JOIN_DEFAULT_DURABILITY = config.joinDefaultDurability;
-        JOIN_FORCED_WEATHER_ID = config.joinForcedWeatherId;
+    // DELETED: applyConfig() — 45-line method that copied every config field to a static.
+    // With the config stored as an instance field, this copy step is unnecessary.
+
+    /**
+     * Hot-reloads the life-essence config from disk and swaps all derived objects.
+     * Called from the config file watcher thread. volatile fields guarantee the
+     * game thread sees the new references on next read.
+     *
+     * LevelingSystem and PowerUpApplicator are stateless formula holders — safe to
+     * replace without migrating player state. Existing LevelProgress and PowerState
+     * objects in PlayerDataRepository are unaffected; they just use the new formulas
+     * on their next operation.
+     */
+    public void reloadConfig() {
+        LifeEssenceConfig newConfig = LifeEssenceConfig.load(this.plugin.getFile(), HytaleMod.LOGGER);
+        LevelingSystem newLevelingSystem = LevelingSystem.fromConfig(newConfig);
+        PowerUpApplicator newPowerUpApplicator = PowerUpApplicator.fromConfig(newConfig);
+        this.config = newConfig;
+        this.levelingSystem = newLevelingSystem;
+        this.powerUpApplicator = newPowerUpApplicator;
+        this.playerDataRepository.updateSystems(newLevelingSystem, newPowerUpApplicator);
+        this.gamePauseController.updateConfig(newConfig.storeSlowmoFactor, newConfig.cameraDistance, newConfig.cameraPositionLerpSpeed, newConfig.cameraRotationLerpSpeed, newConfig.cameraPitch);
+        this.hudUpdateService.updateConfig(newConfig.defaultBossName, newConfig.hudReadyDelayMs);
+        this.storeSessionManager.updateConfig(newConfig.storeInputGraceMs);
+        BossHudSystem bossHudSystem = this.plugin.getBossHudSystem();
+        if (bossHudSystem != null) {
+            bossHudSystem.updateDefaultBossName(newConfig.defaultBossName);
+        }
     }
 
     private void onPlayerAddedToWorld(@Nonnull AddPlayerToWorldEvent event) {
@@ -212,34 +176,12 @@ public class PlayerProgressionManager {
         if (world == null) {
             return;
         }
-        boolean inGameplayWorld = true;
         Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
         if (playerComponent == null) {
             return;
         }
         UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
-        if (!inGameplayWorld) {
-            VampireShooterComponent shooter = (VampireShooterComponent)store.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-            if (shooter != null) {
-                this.resetPowerState(shooter);
-            }
-            BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
-            if (bossHudSystem != null) {
-                bossHudSystem.setHudSuppressed(playerId, true);
-            }
-            this.scheduleHudUpdate(world, playerRefComponent, () -> {
-                if (!playerRef.isValid()) {
-                    return;
-                }
-                Player readyPlayer = (Player)store.getComponent(playerRef, Player.getComponentType());
-                if (readyPlayer == null) {
-                    return;
-                }
-                this.clearHudForPlayer(readyPlayer, playerRefComponent, playerId);
-            });
-            return;
-        }
+        String worldKey = WorldUtils.getWorldKey((Store<EntityStore>)store);
         // Inventory handling for gameplay worlds is done in onPlayerReady after the
         // previous world's snapshot is saved. Don't clear here.
         BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
@@ -248,9 +190,6 @@ public class PlayerProgressionManager {
         }
         this.pendingHudClear.remove(playerId);
         this.scheduleHudUpdate(world, playerRefComponent, () -> {
-            if (!this.isGameplayWorld((Store<EntityStore>)store)) {
-                return;
-            }
             this.loadStateIfMissing(playerId, worldKey);
             LevelingSystem.LevelProgress state = this.playerDataRepository.getOrCreateLevel(playerId);
             BossBarHud hud = this.ensureHud(playerComponent, playerRefComponent, (Store<EntityStore>)store);
@@ -309,7 +248,7 @@ public class PlayerProgressionManager {
         if (world == null) {
             return;
         }
-        this.executeIfTicking(world, () -> {
+        WorldUtils.executeIfTicking(world, () -> {
             VampireShooterComponent shooter;
             if (!playerRef.isValid()) {
                 return;
@@ -328,35 +267,16 @@ public class PlayerProgressionManager {
             }
             UUID playerId = playerRefComponent.getUuid();
             this.disconnectHandledAt.remove(playerId);
-            String worldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)worldStore);
-            boolean inGameplayWorld = this.isGameplayWorld((Store<EntityStore>)worldStore);
+            String worldKey = WorldUtils.getWorldKey((Store<EntityStore>)worldStore);
             World currentWorld = (World)((EntityStore)worldStore.getExternalData()).getWorld();
             if (currentWorld == null) {
                 return;
             }
             BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
             if (bossHudSystem != null) {
-                bossHudSystem.setHudSuppressed(playerId, !inGameplayWorld);
+                bossHudSystem.setHudSuppressed(playerId, false);
             }
             this.switchInventoryForWorld(playerId, worldKey, playerComponent);
-            if (!inGameplayWorld) {
-                this.scheduleHudUpdate(currentWorld, playerRefComponent, () -> {
-                    boolean wasGameplayWorld = Boolean.TRUE.equals(this.lastWasGameplayWorld.remove(playerId));
-                    boolean clearHud = Boolean.TRUE.equals(this.pendingHudClear.remove(playerId)) || wasGameplayWorld;
-                    if (wasGameplayWorld) {
-                        this.resetCamera(playerRefComponent);
-                    }
-                    VampireShooterComponent nonGameplayShooter = (VampireShooterComponent)worldStore.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-                    if (nonGameplayShooter != null) {
-                        this.resetPowerState(nonGameplayShooter);
-                    }
-                    CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
-                    if (clearHud || currentHud instanceof BossBarHud) {
-                        this.clearHudForPlayer(playerComponent, playerRefComponent, playerId);
-                    }
-                });
-                return;
-            }
             if (!Boolean.TRUE.equals(this.lastWasGameplayWorld.put(playerId, true))) {
                 this.forceTopdownCameraDirect(playerRefComponent);
                 Inventory inventory = playerComponent.getInventory();
@@ -382,10 +302,10 @@ public class PlayerProgressionManager {
                 }
                 this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey);
             });
-            this.schedulePlayerWorldTask(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), 300L);
-            this.schedulePlayerWorldTask(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), 1200L);
+            this.taskScheduler.schedule(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), this.config.powerBonusEarlyDelayMs);
+            this.taskScheduler.schedule(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), this.config.powerBonusLateDelayMs);
             this.applyJoinDefaults((Ref<EntityStore>)playerRef, (Store<EntityStore>)worldStore, currentWorld);
-        });
+        }, this.plugin.getLogger());
     }
 
     private void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
@@ -396,7 +316,7 @@ public class PlayerProgressionManager {
         UUID playerId = playerRefComponent.getUuid();
         long now = System.currentTimeMillis();
         Long previousHandledAt = (Long)this.disconnectHandledAt.put(playerId, now);
-        if (previousHandledAt != null && now - previousHandledAt.longValue() < 2000L) {
+        if (previousHandledAt != null && now - previousHandledAt.longValue() < this.config.disconnectGracePeriodMs) {
             return;
         }
         this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] onPlayerDisconnect player=%s", (Object)playerId);
@@ -414,7 +334,7 @@ public class PlayerProgressionManager {
         if (world == null) {
             return;
         }
-        this.executeIfTicking(world, () -> {
+        WorldUtils.executeIfTicking(world, () -> {
             if (!playerRef.isValid()) {
                 return;
             }
@@ -429,9 +349,9 @@ public class PlayerProgressionManager {
             if (playerComponent == null) {
                 return;
             }
-            String inventoryWorldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
+            String inventoryWorldKey = WorldUtils.getWorldKey((Store<EntityStore>)store);
             this.saveInventorySnapshot(playerId, inventoryWorldKey, playerComponent);
-        });
+        }, this.plugin.getLogger());
     }
 
     private void onInventoryChange(@Nonnull LivingEntityInventoryChangeEvent event) {
@@ -445,9 +365,6 @@ public class PlayerProgressionManager {
         }
         Store store = playerRef.getStore();
         if (store == null) {
-            return;
-        }
-        if (!this.isGameplayWorld((Store<EntityStore>)store)) {
             return;
         }
         PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
@@ -470,11 +387,8 @@ public class PlayerProgressionManager {
         if (amount <= 0) {
             return;
         }
-        if (!this.isGameplayWorld(store)) {
-            return;
-        }
         UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
+        String worldKey = WorldUtils.getWorldKey(store);
         this.loadStateIfMissing(playerId, worldKey);
         PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(playerId);
         int bonus = this.powerUpApplicator.getLuckyEssenceBonus(powerState);
@@ -505,22 +419,21 @@ public class PlayerProgressionManager {
 
     public void applyPowerUp(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull String choice) {
         boolean triggerProjectileRain;
-        if (!this.isGameplayWorld(store)) {
-            return;
-        }
         PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
         if (playerRefComponent == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
-        this.loadStateIfMissing(playerId, worldKey);
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getOrCreatePower(playerId);
-        String choiceLabel = this.getPowerChoiceLabel(choice);
-        if (choiceLabel == null) {
+        // Parse the wire string to an enum AT THE BOUNDARY — this is where untrusted
+        // input (from UI) enters our type-safe code. Everything downstream uses the enum.
+        PowerUpType type = PowerUpType.fromKey(choice);
+        if (type == null) {
             return;
         }
-        triggerProjectileRain = this.powerUpApplicator.applyChoice(state, choice);
+        UUID playerId = playerRefComponent.getUuid();
+        String worldKey = WorldUtils.getWorldKey(store);
+        this.loadStateIfMissing(playerId, worldKey);
+        PowerUpApplicator.PowerState state = this.playerDataRepository.getOrCreatePower(playerId);
+        triggerProjectileRain = this.powerUpApplicator.applyChoice(state, type);
         if (triggerProjectileRain && this.isProjectileRainUsedForActiveGroup(playerId, store)) {
             return;
         }
@@ -539,12 +452,12 @@ public class PlayerProgressionManager {
         }
         this.applyPlayerPowerBonuses(playerId, playerRef, store, playerRefComponent, worldKey);
         this.savePlayerState(playerId, worldKey);
-        int rank = this.getPowerChoiceRank(choice, state);
-        this.announcePowerChoice(playerRef, store, playerId, choiceLabel, rank);
+        int rank = this.powerUpApplicator.getChoiceRank(type, state);
+        this.announcePowerChoice(playerRef, store, playerId, type.label(), rank);
     }
 
     public boolean triggerProjectileRainNow(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store) {
-        if (!this.isGameplayWorld(store) || playerRef == null || !playerRef.isValid()) {
+        if (playerRef == null || !playerRef.isValid()) {
             return false;
         }
         VampireShooterComponent shooter = (VampireShooterComponent)store.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
@@ -594,40 +507,10 @@ public class PlayerProgressionManager {
         }
     }
 
-    private int getPowerChoiceRank(@Nonnull String choice, @Nonnull PowerUpApplicator.PowerState state) {
-        return this.powerUpApplicator.getChoiceRank(choice, state);
-    }
-
-    private String getPowerChoiceLabel(@Nonnull String choice) {
-        if ("extra_projectile".equals(choice)) {
-            return "EXTRA PROJECTILE";
-        }
-        if ("fire_rate".equals(choice)) {
-            return "FIRE RATE";
-        }
-        if ("pickup_range".equals(choice)) {
-            return "PICKUP RANGE";
-        }
-        if ("bounce".equals(choice)) {
-            return "BOUNCE";
-        }
-        if ("weapon_damage".equals(choice)) {
-            return "WEAPON DAMAGE";
-        }
-        if ("max_health".equals(choice)) {
-            return "MORE HEALTH";
-        }
-        if ("move_speed".equals(choice)) {
-            return "MOVE SPEED";
-        }
-        if ("lucky".equals(choice)) {
-            return "LUCKY";
-        }
-        if ("projectile_rain".equals(choice)) {
-            return "LAST RESORT...";
-        }
-        return null;
-    }
+    // DELETED: getPowerChoiceRank() and getPowerChoiceLabel() — these were thin
+    // wrappers that duplicated knowledge already in PowerUpType and PowerUpApplicator.
+    // LESSON: When you introduce an enum, delete the string-dispatch methods it replaces.
+    // Leaving both creates two sources of truth that can diverge.
 
     public void restorePowerState(@Nonnull UUID playerId, @Nonnull VampireShooterComponent shooter) {
         this.restorePowerState(playerId, shooter, null);
@@ -668,13 +551,13 @@ public class PlayerProgressionManager {
     }
 
     public boolean hasFireRatePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         return state != null && this.powerUpApplicator.computeFireRateRank(state.fireRateMultiplier()) >= this.powerUpApplicator.getMaxFireRateUpgrades();
     }
 
     public int getFireRateRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -683,13 +566,13 @@ public class PlayerProgressionManager {
     }
 
     public boolean hasPickupRangePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         return state != null && this.powerUpApplicator.computePickupRangeRank(state.pickupRangeBonus()) >= this.powerUpApplicator.getMaxPickupRangeUpgrades();
     }
 
     public int getPickupRangeRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -698,13 +581,13 @@ public class PlayerProgressionManager {
     }
 
     public boolean hasExtraProjectilePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         return state != null && this.powerUpApplicator.clampProjectileCount(state.projectileCount()) >= this.powerUpApplicator.getMaxExtraProjectileUpgrades();
     }
 
     public int getExtraProjectileRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -713,7 +596,7 @@ public class PlayerProgressionManager {
     }
 
     public int getBounceRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -722,7 +605,7 @@ public class PlayerProgressionManager {
     }
 
     public int getWeaponDamageRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -735,7 +618,7 @@ public class PlayerProgressionManager {
     }
 
     public int getHealthRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -744,7 +627,7 @@ public class PlayerProgressionManager {
     }
 
     public int getSpeedRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -757,7 +640,7 @@ public class PlayerProgressionManager {
     }
 
     public int getLuckyRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
+        this.loadStateIfMissing(playerId, WorldUtils.getWorldKey(store));
         PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
         if (state == null) {
             return 0;
@@ -802,7 +685,7 @@ public class PlayerProgressionManager {
     }
 
     private boolean isProjectileRainUsedForActiveGroup(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
+        String worldKey = WorldUtils.getWorldKey(store);
         this.loadStateIfMissing(playerId, worldKey);
         PowerUpApplicator.PowerState selfState = this.playerDataRepository.getOrCreatePower(playerId);
         if (selfState.projectileRainUsed()) {
@@ -900,32 +783,16 @@ public class PlayerProgressionManager {
         }
     }
 
-    private boolean isGameplayWorld(@Nonnull Store<EntityStore> store) {
-        return true;
-    }
-
-    private static String getWorldKey(@Nonnull Store<EntityStore> store) {
-        String displayName;
-        World world = ((EntityStore)store.getExternalData()).getWorld();
-        if (world == null) {
-            return "default";
-        }
-        if (world.getWorldConfig() != null && world.getWorldConfig().getUuid() != null) {
-            return "world-" + world.getWorldConfig().getUuid().toString();
-        }
-        String string = displayName = world.getWorldConfig() != null ? world.getWorldConfig().getDisplayName() : null;
-        if (displayName != null && !displayName.isBlank()) {
-            return displayName.trim();
-        }
-        String name = world.getName();
-        if (name != null && !name.isBlank()) {
-            return name.trim();
-        }
-        return "default";
-    }
+    // DELETED: isGameplayWorld() — always returned true. This is called a "feature flag
+    // stub" — a placeholder for future filtering logic that was never implemented.
+    // It adds branching complexity to every caller for zero benefit. If you need this
+    // check later, add it then. Don't pay the complexity cost up front.
+    //
+    // DELETED: getWorldKey() — moved to WorldUtils.getWorldKey() to eliminate duplication
+    // with MobWaveSpawner's identical copy.
 
     private BossBarHud ensureHud(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull Store<EntityStore> store) {
-        return this.hudUpdateService.ensureHud(playerComponent, playerRefComponent, store, this.isGameplayWorld(store));
+        return this.hudUpdateService.ensureHud(playerComponent, playerRefComponent, store, true /* REMOVED: isGameplayWorld() always returned true */);
     }
 
     private void clearHudForPlayer(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull UUID playerId) {
@@ -937,108 +804,31 @@ public class PlayerProgressionManager {
             return;
         }
         Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent != null && this.isGameplayWorld(store)) {
+        if (playerComponent != null) {
             this.giveJoinWeapon(playerComponent);
         }
         this.forceWeather(world, store);
     }
 
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
-        if (!world.isTicking()) {
-            return;
-        }
-        try {
-            world.execute(action);
-        }
-        catch (IllegalThreadStateException exception) {
-            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
-        }
-    }
+    // DELETED: executeIfTicking(), schedulePlayerWorldTask(), trackPlayerTask(),
+    // untrackPlayerTask(), cancelPlayerTasks(), isPlayerInWorld()
+    //
+    // These 6 methods were identically duplicated in StoreSessionManager and HudUpdateService.
+    // Now they live in WorldUtils (static helpers) and WorldTaskScheduler (task lifecycle).
+    // See those classes for the shared implementation.
 
     private void scheduleHudUpdate(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action) {
         this.hudUpdateService.scheduleHudUpdate(world, playerRefComponent, action);
-    }
-
-    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action, long delayMillis) {
-        UUID playerId = playerRefComponent.getUuid();
-        final ScheduledFuture<?>[] holder = new ScheduledFuture<?>[1];
-        ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
-            ScheduledFuture<?> self = holder[0];
-            if (self != null) {
-                this.untrackPlayerTask(playerId, self);
-            }
-            if (!this.isPlayerInWorld(playerRefComponent, world)) {
-                return;
-            }
-            this.executeIfTicking(world, action);
-        }, delayMillis, TimeUnit.MILLISECONDS);
-        holder[0] = future;
-        this.trackPlayerTask(playerId, future);
-        return future;
     }
 
     private void cancelHudUpdate(@Nonnull UUID playerId) {
         this.hudUpdateService.cancelHudUpdate(playerId);
     }
 
-    private void trackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        this.delayedTasksByPlayer.computeIfAbsent(playerId, id -> new ConcurrentLinkedQueue()).add(future);
-    }
-
-    private void untrackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = (ConcurrentLinkedQueue)this.delayedTasksByPlayer.get(playerId);
-        if (tasks == null) {
-            return;
-        }
-        tasks.remove(future);
-        if (tasks.isEmpty()) {
-            this.delayedTasksByPlayer.remove(playerId, tasks);
-        }
-    }
-
-    private void cancelPlayerTasks(@Nonnull UUID playerId) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = (ConcurrentLinkedQueue)this.delayedTasksByPlayer.remove(playerId);
-        if (tasks == null) {
-            return;
-        }
-        for (ScheduledFuture<?> task : tasks) {
-            if (task == null) {
-                continue;
-            }
-            task.cancel(false);
-        }
-    }
-
     private void cancelAllScheduledTasks(@Nonnull UUID playerId) {
         this.cancelHudUpdate(playerId);
-        this.cancelPlayerTasks(playerId);
+        this.taskScheduler.cancelAll(playerId);
         this.storeSessionManager.cancelAllScheduledTasks(playerId);
-    }
-
-    private boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
-        Ref playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
-            return false;
-        }
-        Store store = playerRef.getStore();
-        if (store == null) {
-            return false;
-        }
-        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
-        if (currentWorld == null) {
-            return false;
-        }
-        WorldConfig currentConfig = currentWorld.getWorldConfig();
-        WorldConfig targetConfig = world.getWorldConfig();
-        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
-            return currentConfig.getUuid().equals(targetConfig.getUuid());
-        }
-        String currentName = currentWorld.getName();
-        String targetName = world.getName();
-        if (currentName != null && targetName != null) {
-            return currentName.equals(targetName);
-        }
-        return currentWorld == world;
     }
 
     private void switchInventoryForWorld(@Nonnull UUID playerId, String worldKey, @Nonnull Player playerComponent) {
@@ -1067,14 +857,14 @@ public class PlayerProgressionManager {
             return;
         }
         boolean changed = false;
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("battleaxe", JOIN_WEAPON_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("shortbow", JOIN_SHORTBOW_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("arrows", JOIN_ARROW_ITEM_ID), JOIN_ARROW_QUANTITY, false);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("food", JOIN_FOOD_ITEM_ID), JOIN_FOOD_QUANTITY, false);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("helmet", JOIN_ARMOR_HEAD_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("chest", JOIN_ARMOR_CHEST_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("hands", JOIN_ARMOR_HANDS_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("legs", JOIN_ARMOR_LEGS_ITEM_ID), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("battleaxe", this.config.joinWeaponItemId), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("shortbow", this.config.joinShortbowItemId), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("arrows", this.config.joinArrowItemId), this.config.joinArrowQuantity, false);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("food", this.config.joinFoodItemId), this.config.joinFoodQuantity, false);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("helmet", this.config.joinArmorHeadItemId), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("chest", this.config.joinArmorChestItemId), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("hands", this.config.joinArmorHandsItemId), 1, true);
+        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("legs", this.config.joinArmorLegsItemId), 1, true);
         if (changed) {
             inventory.markChanged();
         }
@@ -1114,7 +904,7 @@ public class PlayerProgressionManager {
 
     private ItemStack createJoinItemStack(@Nonnull String itemId, int quantity, boolean durable) {
         if (durable) {
-            return new ItemStack(itemId, quantity, JOIN_DEFAULT_DURABILITY, JOIN_DEFAULT_DURABILITY, null);
+            return new ItemStack(itemId, quantity, this.config.joinDefaultDurability, this.config.joinDefaultDurability, null);
         }
         return new ItemStack(itemId, quantity);
     }
@@ -1130,7 +920,7 @@ public class PlayerProgressionManager {
     private void forceWeather(@Nonnull World world, @Nonnull Store<EntityStore> store) {
         WeatherResource weather = (WeatherResource)store.getResource(WeatherResource.getResourceType());
         if (weather != null) {
-            weather.setForcedWeather(JOIN_FORCED_WEATHER_ID);
+            weather.setForcedWeather(this.config.joinForcedWeatherId);
         }
     }
 
@@ -1169,9 +959,6 @@ public class PlayerProgressionManager {
     }
 
     private void openStoreForPlayer(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, int level) {
-        if (!this.isGameplayWorld(store)) {
-            return;
-        }
         this.storeSessionManager.openStoreForPlayer(playerRef, store, playerComponent, playerRefComponent, level);
     }
 

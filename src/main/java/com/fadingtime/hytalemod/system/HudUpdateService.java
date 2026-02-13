@@ -1,3 +1,13 @@
+/*
+ * REFACTOR: Replaced duplicated isPlayerInWorld() and executeIfTicking() with WorldUtils.
+ *
+ * WHAT CHANGED:
+ *   - Deleted the private copies of isPlayerInWorld() and executeIfTicking().
+ *   - Now calls WorldUtils.isPlayerInWorld() and WorldUtils.executeIfTicking().
+ *
+ * PRINCIPLE (DRY): Same utility logic was copied into this file, PlayerProgressionManager,
+ *   and StoreSessionManager. Three copies, same code. Now there's one.
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -9,7 +19,6 @@ import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,12 +30,17 @@ import javax.annotation.Nonnull;
 
 public final class HudUpdateService {
     private final HytaleMod plugin;
-    private final String defaultBossName;
-    private final long hudReadyDelayMs;
+    private volatile String defaultBossName;
+    private volatile long hudReadyDelayMs;
     private final ConcurrentMap<UUID, ScheduledFuture<?>> hudUpdateTasks = new ConcurrentHashMap<>();
 
     public HudUpdateService(@Nonnull HytaleMod plugin, @Nonnull String defaultBossName, long hudReadyDelayMs) {
         this.plugin = plugin;
+        this.defaultBossName = defaultBossName;
+        this.hudReadyDelayMs = hudReadyDelayMs;
+    }
+
+    public void updateConfig(@Nonnull String defaultBossName, long hudReadyDelayMs) {
         this.defaultBossName = defaultBossName;
         this.hudReadyDelayMs = hudReadyDelayMs;
     }
@@ -82,10 +96,11 @@ public final class HudUpdateService {
         }
         ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
             this.hudUpdateTasks.remove(playerId);
-            if (!isPlayerInWorld(playerRefComponent, world)) {
+            // Now uses the shared utility instead of a private copy.
+            if (!WorldUtils.isPlayerInWorld(playerRefComponent, world)) {
                 return;
             }
-            executeIfTicking(world, action);
+            WorldUtils.executeIfTicking(world, action, this.plugin.getLogger());
         }, this.hudReadyDelayMs, TimeUnit.MILLISECONDS);
         this.hudUpdateTasks.put(playerId, future);
     }
@@ -97,40 +112,6 @@ public final class HudUpdateService {
         }
     }
 
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
-        if (!world.isTicking()) {
-            return;
-        }
-        try {
-            world.execute(action);
-        } catch (IllegalThreadStateException exception) {
-            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
-        }
-    }
-
-    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
-        Ref<EntityStore> playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
-            return false;
-        }
-        Store<EntityStore> store = playerRef.getStore();
-        if (store == null) {
-            return false;
-        }
-        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
-        if (currentWorld == null) {
-            return false;
-        }
-        WorldConfig currentConfig = currentWorld.getWorldConfig();
-        WorldConfig targetConfig = world.getWorldConfig();
-        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
-            return currentConfig.getUuid().equals(targetConfig.getUuid());
-        }
-        String currentName = currentWorld.getName();
-        String targetName = world.getName();
-        if (currentName != null && targetName != null) {
-            return currentName.equals(targetName);
-        }
-        return currentWorld == world;
-    }
+    // DELETED: private copies of isPlayerInWorld() and executeIfTicking().
+    // They now live in WorldUtils where all three consumers can share them.
 }

@@ -1,37 +1,54 @@
+/*
+ * REFACTOR: Replaced duplicated utility methods with shared WorldUtils and WorldTaskScheduler.
+ *
+ * WHAT CHANGED:
+ *   - Removed private copies of isPlayerInWorld(), executeIfTicking(),
+ *     schedulePlayerWorldTask(), trackPlayerTask(), untrackPlayerTask(), cancelPlayerTasks().
+ *   - Now uses WorldUtils for static helpers and a WorldTaskScheduler instance for
+ *     per-player task lifecycle management.
+ *   - Removed the delayedTasksByPlayer ConcurrentMap (now inside WorldTaskScheduler).
+ *
+ * PRINCIPLE (DRY):
+ *   These 6 methods were identical copies from PlayerProgressionManager. The duplication
+ *   happened because it was easier to copy than to extract when the code was first written.
+ *   Now there's ONE implementation to maintain.
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.ui.PowerUpStorePage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
-import com.hypixel.hytale.server.core.universe.world.WorldConfig;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 import javax.annotation.Nonnull;
 
 public final class StoreSessionManager {
     private final HytaleMod plugin;
     private final GamePauseController gamePauseController;
-    private final long storeInputGraceMs;
+    private volatile long storeInputGraceMs;
     private final ConcurrentMap<UUID, ScheduledFuture<?>> storeTimeouts = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Integer> storeSessionByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, Long> storeOpenedAt = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentLinkedQueue<ScheduledFuture<?>>> delayedTasksByPlayer = new ConcurrentHashMap<>();
+    // Each system gets its own WorldTaskScheduler so cancelling store tasks
+    // doesn't interfere with other systems' scheduled tasks.
+    private final WorldTaskScheduler taskScheduler;
 
     public StoreSessionManager(@Nonnull HytaleMod plugin, @Nonnull GamePauseController gamePauseController, long storeInputGraceMs) {
         this.plugin = plugin;
         this.gamePauseController = gamePauseController;
+        this.storeInputGraceMs = storeInputGraceMs;
+        this.taskScheduler = new WorldTaskScheduler(plugin.getLogger());
+    }
+
+    public void updateConfig(long storeInputGraceMs) {
         this.storeInputGraceMs = storeInputGraceMs;
     }
 
@@ -43,7 +60,8 @@ public final class StoreSessionManager {
         }
 
         int sessionId = this.storeSessionByPlayer.compute(playerId, (id, value) -> value == null ? 1 : value + 1);
-        ScheduledFuture<?> timeout = schedulePlayerWorldTask(world, playerRefComponent, () -> closeStoreInternal(playerRef, store, playerComponent, playerRefComponent, sessionId), 30000L);
+        // Now delegates to the shared WorldTaskScheduler instead of the local copy.
+        ScheduledFuture<?> timeout = this.taskScheduler.schedule(world, playerRefComponent, () -> closeStoreInternal(playerRef, store, playerComponent, playerRefComponent, sessionId), 30000L);
         ScheduledFuture<?> existing = this.storeTimeouts.put(playerId, timeout);
         if (existing != null) {
             existing.cancel(false);
@@ -52,10 +70,10 @@ public final class StoreSessionManager {
         for (int i = 1; i <= 8; ++i) {
             final float factor = this.gamePauseController.computeSlowmoFactor(i, 8);
             long delay = 1800L * i / 8L;
-            schedulePlayerWorldTask(world, playerRefComponent, () -> this.gamePauseController.applyTimeScale(store, factor), delay);
+            this.taskScheduler.schedule(world, playerRefComponent, () -> this.gamePauseController.applyTimeScale(store, factor), delay);
         }
 
-        schedulePlayerWorldTask(world, playerRefComponent, () -> {
+        this.taskScheduler.schedule(world, playerRefComponent, () -> {
             this.gamePauseController.beginStorePause(world, store);
             this.storeOpenedAt.put(playerId, System.currentTimeMillis());
             playerComponent.getPageManager().openCustomPage(playerRef, store, new PowerUpStorePage(playerRefComponent, level));
@@ -95,7 +113,7 @@ public final class StoreSessionManager {
         if (timeout != null) {
             timeout.cancel(false);
         }
-        cancelPlayerTasks(playerId);
+        this.taskScheduler.cancelAll(playerId);
         this.storeSessionByPlayer.remove(playerId);
         this.storeOpenedAt.remove(playerId);
     }
@@ -123,87 +141,5 @@ public final class StoreSessionManager {
         if (world != null) {
             this.gamePauseController.endStorePause(world, store);
         }
-    }
-
-    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action, long delayMillis) {
-        UUID playerId = playerRefComponent.getUuid();
-        final ScheduledFuture<?>[] holder = new ScheduledFuture<?>[1];
-        ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
-            ScheduledFuture<?> self = holder[0];
-            if (self != null) {
-                untrackPlayerTask(playerId, self);
-            }
-            if (!isPlayerInWorld(playerRefComponent, world)) {
-                return;
-            }
-            executeIfTicking(world, action);
-        }, delayMillis, TimeUnit.MILLISECONDS);
-        holder[0] = future;
-        trackPlayerTask(playerId, future);
-        return future;
-    }
-
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
-        if (!world.isTicking()) {
-            return;
-        }
-        try {
-            world.execute(action);
-        } catch (IllegalThreadStateException exception) {
-            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
-        }
-    }
-
-    private void trackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        this.delayedTasksByPlayer.computeIfAbsent(playerId, id -> new ConcurrentLinkedQueue<>()).add(future);
-    }
-
-    private void untrackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = this.delayedTasksByPlayer.get(playerId);
-        if (tasks == null) {
-            return;
-        }
-        tasks.remove(future);
-        if (tasks.isEmpty()) {
-            this.delayedTasksByPlayer.remove(playerId, tasks);
-        }
-    }
-
-    private void cancelPlayerTasks(@Nonnull UUID playerId) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = this.delayedTasksByPlayer.remove(playerId);
-        if (tasks == null) {
-            return;
-        }
-        for (ScheduledFuture<?> task : tasks) {
-            if (task != null) {
-                task.cancel(false);
-            }
-        }
-    }
-
-    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
-        Ref<EntityStore> playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
-            return false;
-        }
-        Store<EntityStore> store = playerRef.getStore();
-        if (store == null) {
-            return false;
-        }
-        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
-        if (currentWorld == null) {
-            return false;
-        }
-        WorldConfig currentConfig = currentWorld.getWorldConfig();
-        WorldConfig targetConfig = world.getWorldConfig();
-        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
-            return currentConfig.getUuid().equals(targetConfig.getUuid());
-        }
-        String currentName = currentWorld.getName();
-        String targetName = world.getName();
-        if (currentName != null && targetName != null) {
-            return currentName.equals(targetName);
-        }
-        return currentWorld == world;
     }
 }

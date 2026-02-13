@@ -1,7 +1,18 @@
+/*
+ * DATA-DRIVEN DESIGN: All projectile tuning values now come from ProjectileConfig
+ * (loaded from projectile.json) instead of hardcoded static final constants.
+ *
+ * PRINCIPLE: Separate "what the code does" (logic) from "what values it uses" (data).
+ * The code reads values from config; designers tune the game by editing JSON.
+ *
+ * BEGINNER SMELL: "Magic numbers" — 14 hardcoded constants like FIREBALL_SPEED = 25.0f
+ * scattered here required a recompile to change. Now they live in projectile.json.
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
+import com.fadingtime.hytalemod.config.ProjectileConfig;
 import com.fadingtime.hytalemod.helper.ProjectileHelper;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
@@ -22,20 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class VampireShooterSystem
 extends EntityTickingSystem<EntityStore> {
-    private static final float FIRE_INTERVAL_SECONDS = 10.0f;
-    private static final double PROJECTILE_CIRCLE_RADIUS = 0.9;
-    private static final String FIREBALL_PROJECTILE_ID = "Skeleton_Mage_Corruption_Orb";
-    private static final float FIREBALL_SPEED = 25.0f;
-    private static final int BASE_BOUNCES = 0;
-    private static final int MAX_BOUNCES = 3;
-    private static final float FIREBALL_BOUNCE_SPEED_MULTIPLIER = 0.85f;
-    private static final int MAX_PROJECTILES = 10;
-    private static final String RAIN_PROJECTILE_PRIMARY_ID = "Fireball";
-    private static final int PROJECTILE_RAIN_COUNT = 50;
-    private static final double PROJECTILE_RAIN_RADIUS = 25.0;
-    private static final double PROJECTILE_RAIN_HEIGHT = 40.0;
-    private static final double PROJECTILE_RAIN_SPEED = 20.0;
-    private static final float PROJECTILE_RAIN_BURST_DELAY_SECONDS = 0.6f;
+    private volatile ProjectileConfig config;
     private final ComponentType<EntityStore, VampireShooterComponent> vampireShooterComponentType;
     private final ComponentType<EntityStore, Player> playerComponentType;
     private final ComponentType<EntityStore, TransformComponent> transformComponentType;
@@ -43,13 +41,18 @@ extends EntityTickingSystem<EntityStore> {
     private final ComponentType<EntityStore, UUIDComponent> uuidComponentType;
     private final Query<EntityStore> query;
 
-    public VampireShooterSystem(ComponentType<EntityStore, VampireShooterComponent> vampireShooterComponentType) {
+    public VampireShooterSystem(ComponentType<EntityStore, VampireShooterComponent> vampireShooterComponentType, ProjectileConfig config) {
         this.vampireShooterComponentType = vampireShooterComponentType;
+        this.config = config;
         this.playerComponentType = Player.getComponentType();
         this.transformComponentType = TransformComponent.getComponentType();
         this.headRotationComponentType = HeadRotation.getComponentType();
         this.uuidComponentType = UUIDComponent.getComponentType();
         this.query = Query.and(this.playerComponentType, this.transformComponentType, this.headRotationComponentType, this.vampireShooterComponentType, this.uuidComponentType);
+    }
+
+    public void reloadConfig(ProjectileConfig config) {
+        this.config = config;
     }
 
     public Query<EntityStore> getQuery() {
@@ -80,12 +83,12 @@ extends EntityTickingSystem<EntityStore> {
         shooterComponent.tickProjectileRainCooldown(dt);
         if (shooterComponent.getProjectileRainCooldown() <= 0.0f && shooterComponent.consumeProjectileRain()) {
             this.spawnProjectileRain(playerRef, transform.getPosition(), commandBuffer);
-            shooterComponent.setProjectileRainCooldown(PROJECTILE_RAIN_BURST_DELAY_SECONDS);
+            shooterComponent.setProjectileRainCooldown(this.config.rainBurstDelaySeconds);
         }
 
         shooterComponent.incrementTimer(dt);
         float rate = shooterComponent.getFireRateMultiplier();
-        float interval = rate <= 0.0f ? FIRE_INTERVAL_SECONDS : FIRE_INTERVAL_SECONDS / rate;
+        float interval = rate <= 0.0f ? this.config.fireIntervalSeconds : this.config.fireIntervalSeconds / rate;
         if (shooterComponent.getTimer() >= interval) {
             shooterComponent.resetTimer();
             Player player = (Player)archetypeChunk.getComponent(index, this.playerComponentType);
@@ -96,7 +99,7 @@ extends EntityTickingSystem<EntityStore> {
             if (projectileCount <= 0) {
                 return;
             }
-            int count = Math.min(projectileCount, MAX_PROJECTILES);
+            int count = Math.min(projectileCount, this.config.maxProjectilesPerShot);
             Vector3d position = transform.getPosition();
             Vector3f rotation = headRotation.getRotation();
 
@@ -115,9 +118,9 @@ extends EntityTickingSystem<EntityStore> {
             }
 
             Vector3d right = new Vector3d(forwardFlat.z, 0.0, -forwardFlat.x);
-            int bounceCount = Math.min(MAX_BOUNCES, Math.max(0, BASE_BOUNCES + shooterComponent.getBounceBonus()));
+            int bounceCount = Math.min(this.config.maxBounces, Math.max(0, this.config.baseBounces + shooterComponent.getBounceBonus()));
 
-            ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, position, rotation, 0.0f, FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
+            ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, position, rotation, 0.0f, this.config.fireballProjectileId, this.config.fireballSpeed, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, this.config.bounceSpeedMultiplier, this.config.spawnYOffset, this.config.spawnForwardOffset, HytaleMod.LOGGER);
             int remaining = count - 1;
             if (remaining <= 0) {
                 return;
@@ -128,23 +131,23 @@ extends EntityTickingSystem<EntityStore> {
                 double cos = Math.cos(angle);
                 double sin = Math.sin(angle);
                 Vector3d spawnBase = position.clone();
-                spawnBase.add(forwardFlat.x * cos * PROJECTILE_CIRCLE_RADIUS + right.x * sin * PROJECTILE_CIRCLE_RADIUS, 0.0, forwardFlat.z * cos * PROJECTILE_CIRCLE_RADIUS + right.z * sin * PROJECTILE_CIRCLE_RADIUS);
-                ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, spawnBase, rotation, (float)Math.toDegrees(angle), FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
+                spawnBase.add(forwardFlat.x * cos * this.config.projectileCircleRadius + right.x * sin * this.config.projectileCircleRadius, 0.0, forwardFlat.z * cos * this.config.projectileCircleRadius + right.z * sin * this.config.projectileCircleRadius);
+                ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, spawnBase, rotation, (float)Math.toDegrees(angle), this.config.fireballProjectileId, this.config.fireballSpeed, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, this.config.bounceSpeedMultiplier, this.config.spawnYOffset, this.config.spawnForwardOffset, HytaleMod.LOGGER);
             }
         }
     }
 
     private void spawnProjectileRain(Ref<EntityStore> ownerRef, Vector3d center, CommandBuffer<EntityStore> commandBuffer) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        for (int i = 0; i < PROJECTILE_RAIN_COUNT; ++i) {
+        for (int i = 0; i < this.config.rainCount; ++i) {
             double angle = random.nextDouble() * Math.PI * 2.0;
-            double radius = Math.sqrt(random.nextDouble()) * PROJECTILE_RAIN_RADIUS;
+            double radius = Math.sqrt(random.nextDouble()) * this.config.rainRadius;
             double x = Math.cos(angle) * radius;
             double z = Math.sin(angle) * radius;
             Vector3d spawnPos = center.clone();
-            spawnPos.add(x, PROJECTILE_RAIN_HEIGHT, z);
-            Vector3d velocity = new Vector3d(0.0, -PROJECTILE_RAIN_SPEED, 0.0);
-            ProjectileHelper.fireProjectileWithVelocity(ownerRef, commandBuffer, this.uuidComponentType, spawnPos, velocity, RAIN_PROJECTILE_PRIMARY_ID, HytaleMod.LOGGER);
+            spawnPos.add(x, this.config.rainHeight, z);
+            Vector3d velocity = new Vector3d(0.0, -this.config.rainSpeed, 0.0);
+            ProjectileHelper.fireProjectileWithVelocity(ownerRef, commandBuffer, this.uuidComponentType, spawnPos, velocity, this.config.rainProjectileId, HytaleMod.LOGGER);
         }
     }
 }

@@ -1,0 +1,33 @@
+{
+  // Primary shooting
+  "shooting": {
+    "fireIntervalSeconds": 10.0,
+    "maxProjectilesPerShot": 10,
+    "spawnYOffset": 1.0,              // vertical offset from player position
+    "spawnForwardOffset": 0.5,        // forward offset from player facing
+    "projectileCircleRadius": 0.9     // spread radius for multi-projectile shots
+  },
+
+  // Fireball projectile
+  "fireball": {
+    "projectileId": "Skeleton_Mage_Corruption_Orb",
+    "speed": 25.0
+  },
+
+  // Bounce mechanics
+  "bounce": {
+    "baseBounces": 0,
+    "maxBounces": 3,
+    "speedMultiplier": 0.85           // speed retained per bounce (1.0 = no loss)
+  },
+
+  // Projectile rain ability
+  "rain": {
+    "projectileId": "Fireball",
+    "count": 50,
+    "radius": 25.0,
+    "height": 40.0,                   // spawn height above target
+    "speed": 20.0,
+    "burstDelaySeconds": 0.6          // delay between rain bursts
+  }
+}
