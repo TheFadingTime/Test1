@@ -1,17 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.CommandBuffer
- *  com.hypixel.hytale.component.ComponentType
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.component.query.Query
- *  com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent
- *  com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems$OnDeathSystem
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -26,33 +12,35 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import java.util.UUID;
-import javax.annotation.Nonnull;
 
 public class BossWaveDeathSystem
 extends DeathSystems.OnDeathSystem {
     private final ComponentType<EntityStore, BossWaveComponent> bossComponentType;
 
-    public BossWaveDeathSystem(@Nonnull ComponentType<EntityStore, BossWaveComponent> componentType) {
-        this.bossComponentType = componentType;
+    public BossWaveDeathSystem(ComponentType<EntityStore, BossWaveComponent> bossComponentType) {
+        this.bossComponentType = bossComponentType;
     }
 
-    @Nonnull
     public Query<EntityStore> getQuery() {
-        return Query.and((Query[])new Query[]{this.bossComponentType});
+        return Query.and(this.bossComponentType);
     }
 
-    public void onComponentAdded(@Nonnull Ref<EntityStore> ref, @Nonnull DeathComponent deathComponent, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        BossWaveComponent bossWaveComponent = (BossWaveComponent)commandBuffer.getComponent(ref, this.bossComponentType);
-        if (bossWaveComponent == null || bossWaveComponent.getOwnerId() == null) {
+    public void onComponentAdded(Ref<EntityStore> ref, DeathComponent component, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+        BossWaveComponent bossComponent = (BossWaveComponent)commandBuffer.getComponent(ref, this.bossComponentType);
+        UUID ownerId = bossComponent != null ? bossComponent.getOwnerId() : null;
+        if (ownerId == null) {
             return;
         }
-        UUID uUID = bossWaveComponent.getOwnerId();
-        MobWaveSpawner mobWaveSpawner = HytaleMod.getInstance().getMobWaveSpawner();
-        if (mobWaveSpawner != null) {
-            mobWaveSpawner.notifyBossDefeated(uUID);
+
+        HytaleMod mod = HytaleMod.getInstance();
+        MobWaveSpawner spawner = mod.getMobWaveSpawner();
+        if (spawner != null) {
+            spawner.notifyBossDefeated(ownerId);
         }
-        if (HytaleMod.getInstance().getBossHudSystem() != null) {
-            HytaleMod.getInstance().getBossHudSystem().clearBossHud(uUID);
+
+        BossHudSystem bossHudSystem = mod.getBossHudSystem();
+        if (bossHudSystem != null) {
+            bossHudSystem.clearBossHud(ownerId);
         }
         commandBuffer.removeComponent(ref, this.bossComponentType);
     }

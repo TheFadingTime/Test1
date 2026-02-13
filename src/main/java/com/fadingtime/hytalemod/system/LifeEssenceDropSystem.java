@@ -1,34 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.AddReason
- *  com.hypixel.hytale.component.CommandBuffer
- *  com.hypixel.hytale.component.Component
- *  com.hypixel.hytale.component.ComponentType
- *  com.hypixel.hytale.component.Holder
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.component.dependency.Dependency
- *  com.hypixel.hytale.component.dependency.Order
- *  com.hypixel.hytale.component.dependency.SystemDependency
- *  com.hypixel.hytale.component.query.Query
- *  com.hypixel.hytale.math.vector.Vector3d
- *  com.hypixel.hytale.math.vector.Vector3f
- *  com.hypixel.hytale.server.core.asset.type.gameplay.DeathConfig$ItemsLossMode
- *  com.hypixel.hytale.server.core.inventory.ItemStack
- *  com.hypixel.hytale.server.core.modules.entity.component.EntityScaleComponent
- *  com.hypixel.hytale.server.core.modules.entity.component.HeadRotation
- *  com.hypixel.hytale.server.core.modules.entity.component.TransformComponent
- *  com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent
- *  com.hypixel.hytale.server.core.modules.entity.damage.DeathSystems$OnDeathSystem
- *  com.hypixel.hytale.server.core.modules.entity.item.ItemComponent
- *  com.hypixel.hytale.server.core.modules.entity.item.PreventPickup
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  com.hypixel.hytale.server.npc.entities.NPCEntity
- *  com.hypixel.hytale.server.npc.systems.NPCDamageSystems$DropDeathItems
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -64,7 +33,6 @@ import com.hypixel.hytale.server.npc.systems.NPCDamageSystems;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
-import javax.annotation.Nonnull;
 
 public class LifeEssenceDropSystem
 extends DeathSystems.OnDeathSystem {
@@ -75,50 +43,49 @@ extends DeathSystems.OnDeathSystem {
     private final ComponentType<EntityStore, LifeEssenceDropComponent> lifeEssenceDropType;
     private final Set<Dependency<EntityStore>> dependencies = Set.of(new SystemDependency(Order.BEFORE, NPCDamageSystems.DropDeathItems.class));
 
-    public LifeEssenceDropSystem(@Nonnull ComponentType<EntityStore, SpawnedByMobWaveComponent> componentType, @Nonnull ComponentType<EntityStore, BossWaveComponent> componentType2, @Nonnull ComponentType<EntityStore, LifeEssenceDropComponent> componentType3) {
-        this.markerType = componentType;
-        this.bossMarkerType = componentType2;
-        this.lifeEssenceDropType = componentType3;
+    public LifeEssenceDropSystem(ComponentType<EntityStore, SpawnedByMobWaveComponent> markerType, ComponentType<EntityStore, BossWaveComponent> bossMarkerType, ComponentType<EntityStore, LifeEssenceDropComponent> lifeEssenceDropType) {
+        this.markerType = markerType;
+        this.bossMarkerType = bossMarkerType;
+        this.lifeEssenceDropType = lifeEssenceDropType;
     }
 
-    @Nonnull
     public Query<EntityStore> getQuery() {
-        return Query.and((Query[])new Query[]{NPCEntity.getComponentType(), this.markerType, TransformComponent.getComponentType()});
+        return Query.and(NPCEntity.getComponentType(), this.markerType, TransformComponent.getComponentType());
     }
 
-    @Nonnull
     public Set<Dependency<EntityStore>> getDependencies() {
         return this.dependencies;
     }
 
-    public void onComponentAdded(@Nonnull Ref<EntityStore> ref, @Nonnull DeathComponent deathComponent, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        NPCEntity nPCEntity = (NPCEntity)commandBuffer.getComponent(ref, NPCEntity.getComponentType());
-        if (nPCEntity == null) {
+    public void onComponentAdded(Ref<EntityStore> ref, DeathComponent component, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
+        NPCEntity npc = (NPCEntity)commandBuffer.getComponent(ref, NPCEntity.getComponentType());
+        if (npc == null) {
             return;
         }
-        String string = nPCEntity.getRole() != null ? nPCEntity.getRole().getRoleName() : nPCEntity.getRoleName();
-        deathComponent.setItemsLossMode(DeathConfig.ItemsLossMode.NONE);
-        TransformComponent transformComponent = (TransformComponent)commandBuffer.getComponent(ref, TransformComponent.getComponentType());
+
+        component.setItemsLossMode(DeathConfig.ItemsLossMode.NONE);
+        TransformComponent transform = (TransformComponent)commandBuffer.getComponent(ref, TransformComponent.getComponentType());
         HeadRotation headRotation = (HeadRotation)commandBuffer.getComponent(ref, HeadRotation.getComponentType());
-        if (transformComponent == null) {
+        if (transform == null) {
             return;
         }
-        boolean bl = commandBuffer.getComponent(ref, this.bossMarkerType) != null || store.getComponent(ref, this.bossMarkerType) != null;
-        int n = bl ? 30 : 1;
-        ItemStack itemStack = new ItemStack(ConfigManager.get().lifeEssenceItemId, n);
-        Vector3d vector3d = transformComponent.getPosition().clone().add(0.0, 1.0, 0.0);
-        Vector3f vector3f = headRotation != null ? headRotation.getRotation().clone() : new Vector3f(0.0f, 0.0f, 0.0f);
-        Holder[] holderArray = ItemComponent.generateItemDrops(store, List.of(itemStack), (Vector3d)vector3d, (Vector3f)vector3f);
-        if (holderArray == null || holderArray.length == 0) {
-            HytaleMod.getInstance().getLogger().at(Level.WARNING).log("No life essence drop for " + ref + " (" + string + ")");
+        boolean isBoss = commandBuffer.getComponent(ref, this.bossMarkerType) != null || store.getComponent(ref, this.bossMarkerType) != null;
+        int essenceDropCount = isBoss ? BOSS_ESSENCE_DROP_COUNT : NORMAL_ESSENCE_DROP_COUNT;
+        ItemStack lifeEssence = new ItemStack(ConfigManager.get().lifeEssenceItemId, essenceDropCount);
+        Vector3d dropPosition = transform.getPosition().clone().add(0.0, 1.0, 0.0);
+        Vector3f dropRotation = headRotation != null ? headRotation.getRotation().clone() : new Vector3f(0.0f, 0.0f, 0.0f);
+        Holder[] drops = ItemComponent.generateItemDrops(store, List.of(lifeEssence), (Vector3d)dropPosition, (Vector3f)dropRotation);
+        if (drops == null || drops.length == 0) {
+            HytaleMod.LOGGER.log(Level.WARNING, "No life essence drops generated for npc " + ref);
             return;
         }
-        long l = System.currentTimeMillis();
-        for (Holder holder : holderArray) {
-            holder.addComponent(this.lifeEssenceDropType, (Component)new LifeEssenceDropComponent(l));
-            holder.addComponent(PreventPickup.getComponentType(), (Component)PreventPickup.INSTANCE);
-            holder.addComponent(EntityScaleComponent.getComponentType(), (Component)new EntityScaleComponent(3.0f));
+
+        long nowMs = System.currentTimeMillis();
+        for (Holder drop : drops) {
+            drop.addComponent(this.lifeEssenceDropType, new LifeEssenceDropComponent(nowMs));
+            drop.addComponent(PreventPickup.getComponentType(), PreventPickup.INSTANCE);
+            drop.addComponent(EntityScaleComponent.getComponentType(), new EntityScaleComponent(3.0f));
         }
-        commandBuffer.addEntities(holderArray, AddReason.SPAWN);
+        commandBuffer.addEntities(drops, AddReason.SPAWN);
     }
 }
