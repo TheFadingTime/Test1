@@ -1,5 +1,16 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.google.gson.JsonArray
+ *  com.google.gson.JsonElement
+ *  com.google.gson.JsonObject
+ *  com.google.gson.JsonParseException
+ *  com.google.gson.JsonParser
+ */
 package com.fadingtime.hytalemod.config;
 
+import com.fadingtime.hytalemod.config.ConfigManager;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -9,8 +20,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -23,313 +36,264 @@ public final class ConfigLoader {
     private ConfigLoader() {
     }
 
-    public static ConfigManager.SpawnConfig load(Path pluginFilePath, Logger logger, ConfigManager.SpawnConfig defaults) {
+    public static ConfigManager.SpawnConfig load(Path path, Logger logger, ConfigManager.SpawnConfig spawnConfig) {
         if (logger == null) {
             throw new IllegalArgumentException("Logger is required for config loading.");
         }
-        if (defaults == null) {
+        if (spawnConfig == null) {
             throw new IllegalArgumentException("Default config is required.");
         }
-
-        Path externalPath = resolveExternalPath(pluginFilePath);
-        JsonObject externalJson = readExternalJson(externalPath, logger);
-        if (externalJson != null) {
-            ConfigManager.SpawnConfig parsedExternal = parseSpawnConfig(externalJson, logger, externalPath.toString());
-            if (parsedExternal != null) {
-                return parsedExternal;
+        Path path2 = ConfigLoader.resolveExternalPath(path);
+        JsonObject jsonObject = ConfigLoader.readExternalJson(path2, logger);
+        if (jsonObject != null) {
+            ConfigManager.SpawnConfig spawnConfig2 = ConfigLoader.parseSpawnConfig(jsonObject, logger, path2.toString());
+            if (spawnConfig2 != null) {
+                return spawnConfig2;
             }
             logger.warning("External spawn config is invalid, trying bundled config.");
         }
-
-        JsonObject bundledJson = readBundledJson(logger);
-        ConfigManager.SpawnConfig parsedBundled = parseSpawnConfig(bundledJson, logger, "bundled:" + BUNDLED_RESOURCE);
-        if (parsedBundled != null) {
-            if (externalJson == null) {
-                tryWriteDefaultExternal(externalPath, bundledJson, logger);
+        JsonObject jsonObject2 = ConfigLoader.readBundledJson(logger);
+        ConfigManager.SpawnConfig spawnConfig3 = ConfigLoader.parseSpawnConfig(jsonObject2, logger, "bundled:config.json");
+        if (spawnConfig3 != null) {
+            if (jsonObject == null) {
+                ConfigLoader.tryWriteDefaultExternal(path2, jsonObject2, logger);
             }
-            return parsedBundled;
+            return spawnConfig3;
         }
-
         logger.warning("config.json parse failed; using in-code defaults.");
-        return defaults;
+        return spawnConfig;
     }
 
-    private static Path resolveExternalPath(Path pluginFilePath) {
-        Path pluginDir = pluginFilePath != null ? pluginFilePath.getParent() : null;
-        Path baseDir = pluginDir != null ? pluginDir : Path.of(".");
-        return baseDir.resolve("config").resolve("config.json");
+    private static Path resolveExternalPath(Path path) {
+        Path path2 = path != null ? path.getParent() : null;
+        Path path3 = path2 != null ? path2 : Path.of(".", new String[0]);
+        return path3.resolve("config").resolve(BUNDLED_RESOURCE);
     }
 
     private static JsonObject readExternalJson(Path path, Logger logger) {
-        if (!Files.isRegularFile(path)) {
+        if (!Files.isRegularFile(path, new LinkOption[0])) {
             return null;
         }
         try {
-            String raw = Files.readString(path, StandardCharsets.UTF_8);
-            return parseJsonObject(raw, path.toString(), logger);
-        } catch (IOException exception) {
-            logger.log(Level.WARNING, "Failed reading " + path, exception);
+            String string = Files.readString(path, StandardCharsets.UTF_8);
+            return ConfigLoader.parseJsonObject(string, path.toString(), logger);
+        }
+        catch (IOException iOException) {
+            logger.log(Level.WARNING, "Failed reading " + String.valueOf(path), iOException);
             return null;
         }
     }
 
     private static JsonObject readBundledJson(Logger logger) {
-        try (InputStream in = ConfigLoader.class.getClassLoader().getResourceAsStream(BUNDLED_RESOURCE)) {
-            if (in == null) {
-                throw new IllegalStateException("Bundled " + BUNDLED_RESOURCE + " is missing.");
+        try (InputStream inputStream = ConfigLoader.class.getClassLoader().getResourceAsStream(BUNDLED_RESOURCE)) {
+            if (inputStream == null) {
+                throw new IllegalStateException("Bundled config.json is missing.");
             }
-            String raw = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-            JsonObject parsed = parseJsonObject(raw, BUNDLED_RESOURCE, logger);
-            if (parsed == null) {
-                throw new IllegalStateException("Bundled " + BUNDLED_RESOURCE + " is not valid JSON.");
+            String string = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            JsonObject jsonObject = ConfigLoader.parseJsonObject(string, BUNDLED_RESOURCE, logger);
+            if (jsonObject == null) {
+                throw new IllegalStateException("Bundled config.json is not valid JSON.");
             }
-            return parsed;
-        } catch (IOException exception) {
-            throw new IllegalStateException("Could not read bundled " + BUNDLED_RESOURCE, exception);
+            return jsonObject;
+        }
+        catch (IOException iOException) {
+            throw new IllegalStateException("Could not read bundled config.json", iOException);
         }
     }
 
-    private static void tryWriteDefaultExternal(Path path, JsonObject json, Logger logger) {
+    private static void tryWriteDefaultExternal(Path path, JsonObject jsonObject, Logger logger) {
         try {
-            Path parent = path.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+            Path path2 = path.getParent();
+            if (path2 != null) {
+                Files.createDirectories(path2, new FileAttribute[0]);
             }
-            Files.writeString(path, json.toString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-        } catch (IOException exception) {
-            logger.log(Level.FINE, "Could not write default config to " + path, exception);
+            Files.writeString(path, (CharSequence)jsonObject.toString(), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        }
+        catch (IOException iOException) {
         }
     }
 
-    private static JsonObject parseJsonObject(String raw, String source, Logger logger) {
+    private static JsonObject parseJsonObject(String string, String string2, Logger logger) {
         try {
-            JsonElement parsed = JsonParser.parseString(raw);
-            if (!parsed.isJsonObject()) {
-                logger.warning(source + " is not a JSON object.");
+            JsonElement jsonElement = JsonParser.parseString((String)string);
+            if (!jsonElement.isJsonObject()) {
+                logger.warning(string2 + " is not a JSON object.");
                 return null;
             }
-            return parsed.getAsJsonObject();
-        } catch (JsonParseException exception) {
-            logger.warning("Invalid JSON in " + source);
+            return jsonElement.getAsJsonObject();
+        }
+        catch (JsonParseException jsonParseException) {
+            logger.warning("Invalid JSON in " + string2);
             return null;
         }
     }
 
-    private static ConfigManager.SpawnConfig parseSpawnConfig(
-        JsonObject root,
-        Logger logger,
-        String source
-    ) {
-        if (root == null) {
+    private static ConfigManager.SpawnConfig parseSpawnConfig(JsonObject jsonObject, Logger logger, String string) {
+        if (jsonObject == null) {
             return null;
         }
-
         try {
-            int spawnCount = readInt(root, "spawnCount", 0);
-            int spawnCountPerWave = readInt(root, "spawnCountPerWave", 0);
-            int maxMobsPerWave = readInt(root, "maxMobsPerWave", 1);
-            long spawnIntervalMs = readLong(root, "spawnIntervalMs", 500L);
-            double minSpawnRadius = readDouble(root, "minSpawnRadius", 0.1);
-            double maxSpawnRadius = readDouble(root, "maxSpawnRadius", minSpawnRadius);
-            double spawnYOffset = readDouble(root, "spawnYOffset", -1024.0);
-            float maxMobHealth = readFloat(root, "maxMobHealth", 1.0f);
-            float waveHealthBonus = readFloat(root, "waveHealthBonus", 0.0f);
-            List<String> hostileRoles = readStringList(root, "hostileRoles");
-            String lifeEssenceItemId = readString(root, "lifeEssenceItemId");
-            List<ConfigManager.BossDefinition> bosses = readBosses(root, logger);
-
-            return new ConfigManager.SpawnConfig(
-                spawnCount,
-                spawnCountPerWave,
-                maxMobsPerWave,
-                spawnIntervalMs,
-                minSpawnRadius,
-                maxSpawnRadius,
-                spawnYOffset,
-                maxMobHealth,
-                waveHealthBonus,
-                hostileRoles,
-                lifeEssenceItemId,
-                bosses
-            );
-        } catch (RuntimeException exception) {
-            logger.log(Level.WARNING, "Invalid spawn config in " + source, exception);
+            int n = ConfigLoader.readInt(jsonObject, "spawnCount", 0);
+            int n2 = ConfigLoader.readInt(jsonObject, "spawnCountPerWave", 0);
+            int n3 = ConfigLoader.readInt(jsonObject, "maxMobsPerWave", 1);
+            long l = ConfigLoader.readLong(jsonObject, "spawnIntervalMs", 500L);
+            double d = ConfigLoader.readDouble(jsonObject, "minSpawnRadius", 0.1);
+            double d2 = ConfigLoader.readDouble(jsonObject, "maxSpawnRadius", d);
+            double d3 = ConfigLoader.readDouble(jsonObject, "spawnYOffset", -1024.0);
+            float f = ConfigLoader.readFloat(jsonObject, "maxMobHealth", 1.0f);
+            List<String> list = ConfigLoader.readStringList(jsonObject, "hostileRoles");
+            String string2 = ConfigLoader.readString(jsonObject, "lifeEssenceItemId");
+            List<ConfigManager.BossDefinition> list2 = ConfigLoader.readBosses(jsonObject, logger);
+            return new ConfigManager.SpawnConfig(n, n2, n3, l, d, d2, d3, f, list, string2, list2);
+        }
+        catch (IllegalArgumentException illegalArgumentException) {
+            logger.log(Level.WARNING, "Invalid spawn config in " + string, illegalArgumentException);
             return null;
         }
     }
 
-    private static List<ConfigManager.BossDefinition> readBosses(JsonObject root, Logger logger) {
-        JsonArray bossesArray = getArray(root, "bosses");
-        if (bossesArray == null) {
+    private static List<ConfigManager.BossDefinition> readBosses(JsonObject jsonObject, Logger logger) {
+        JsonArray jsonArray = ConfigLoader.getArray(jsonObject, "bosses");
+        if (jsonArray == null) {
             return List.of();
         }
-
-        List<ConfigManager.BossDefinition> parsed = new ArrayList<>();
-        for (JsonElement element : bossesArray) {
-            if (!element.isJsonObject()) {
-                continue;
-            }
-
-            JsonObject bossJson = element.getAsJsonObject();
+        ArrayList<ConfigManager.BossDefinition> arrayList = new ArrayList<ConfigManager.BossDefinition>();
+        for (JsonElement jsonElement : jsonArray) {
+            if (!jsonElement.isJsonObject()) continue;
+            JsonObject jsonObject2 = jsonElement.getAsJsonObject();
             try {
-                String id = readString(bossJson, "id");
-                String role = readString(bossJson, "role");
-                List<Integer> waves = readIntList(bossJson, "waves");
-
-                int startWave;
-                if (hasKey(bossJson, "startWave")) {
-                    startWave = readInt(bossJson, "startWave", 1);
-                } else if (!waves.isEmpty()) {
-                    startWave = waves.get(0);
-                } else {
-                    startWave = 1;
-                }
-
-                int interval = hasKey(bossJson, "interval") ? readInt(bossJson, "interval", 0) : 0;
-                float scale = hasKey(bossJson, "scale") ? readFloat(bossJson, "scale", 0.1f) : 1.0f;
-                float healthBase = hasKey(bossJson, "healthBase") ? readFloat(bossJson, "healthBase", 0.1f) : 100.0f;
-                float healthPerStep = hasKey(bossJson, "healthPerStep") ? readFloat(bossJson, "healthPerStep", 0.0f) : 0.0f;
-                String healthModeRaw = hasKey(bossJson, "healthMode") ? readString(bossJson, "healthMode") : "spawn";
-                ConfigManager.HealthMode healthMode = ConfigManager.HealthMode.fromJsonValue(healthModeRaw);
-                String modifierId = hasKey(bossJson, "healthModifierId")
-                    ? readString(bossJson, "healthModifierId")
-                    : "BossWaveHealth";
-
-                parsed.add(new ConfigManager.BossDefinition(
-                    id,
-                    role,
-                    startWave,
-                    interval,
-                    waves,
-                    scale,
-                    healthBase,
-                    healthPerStep,
-                    healthMode,
-                    modifierId
-                ));
-            } catch (RuntimeException exception) {
-                logger.log(Level.FINE, "Skipped invalid boss entry.", exception);
+                String string = ConfigLoader.readString(jsonObject2, "id");
+                String string2 = ConfigLoader.readString(jsonObject2, "role");
+                List<Integer> list = ConfigLoader.readIntList(jsonObject2, "waves");
+                int n = ConfigLoader.hasKey(jsonObject2, "startWave") ? ConfigLoader.readInt(jsonObject2, "startWave", 1) : (!list.isEmpty() ? list.get(0) : 1);
+                int n2 = ConfigLoader.hasKey(jsonObject2, "interval") ? ConfigLoader.readInt(jsonObject2, "interval", 0) : 0;
+                float f = ConfigLoader.hasKey(jsonObject2, "scale") ? ConfigLoader.readFloat(jsonObject2, "scale", 0.1f) : 1.0f;
+                float f2 = ConfigLoader.hasKey(jsonObject2, "healthBase") ? ConfigLoader.readFloat(jsonObject2, "healthBase", 0.1f) : 100.0f;
+                float f3 = ConfigLoader.hasKey(jsonObject2, "healthPerStep") ? ConfigLoader.readFloat(jsonObject2, "healthPerStep", 0.0f) : 0.0f;
+                String string3 = ConfigLoader.hasKey(jsonObject2, "healthMode") ? ConfigLoader.readString(jsonObject2, "healthMode") : "spawn";
+                ConfigManager.HealthMode healthMode = ConfigManager.HealthMode.fromJsonValue(string3);
+                String string4 = ConfigLoader.hasKey(jsonObject2, "healthModifierId") ? ConfigLoader.readString(jsonObject2, "healthModifierId") : "BossWaveHealth";
+                arrayList.add(new ConfigManager.BossDefinition(string, string2, n, n2, list, f, f2, f3, healthMode, string4));
+            }
+            catch (IllegalArgumentException illegalArgumentException) {
             }
         }
-
-        return parsed;
+        return arrayList;
     }
 
-    private static int readInt(JsonObject json, String key, int min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
+    private static int readInt(JsonObject jsonObject, String string, int n) {
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonPrimitive()) {
+            throw new IllegalArgumentException("Missing numeric key: " + string);
         }
         try {
-            return Math.max(min, value.getAsInt());
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Invalid int key: " + key, exception);
+            return Math.max(n, jsonElement.getAsInt());
+        }
+        catch (NumberFormatException | UnsupportedOperationException runtimeException) {
+            throw new IllegalArgumentException("Invalid int key: " + string, runtimeException);
         }
     }
 
-    private static long readLong(JsonObject json, String key, long min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isNumber()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
+    private static long readLong(JsonObject jsonObject, String string, long l) {
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonPrimitive() || !jsonElement.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalArgumentException("Missing numeric key: " + string);
         }
-        return Math.max(min, value.getAsLong());
-    }
-
-    private static float readFloat(JsonObject json, String key, float min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
-        }
-        float parsed;
         try {
-            parsed = value.getAsFloat();
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Invalid float key: " + key, exception);
+            return Math.max(l, jsonElement.getAsLong());
         }
-        if (!Float.isFinite(parsed)) {
-            throw new IllegalArgumentException("Non-finite float key: " + key);
+        catch (NumberFormatException | UnsupportedOperationException runtimeException) {
+            throw new IllegalArgumentException("Invalid long key: " + string, runtimeException);
         }
-        return Math.max(min, parsed);
     }
 
-    private static double readDouble(JsonObject json, String key, double min) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive()) {
-            throw new IllegalArgumentException("Missing numeric key: " + key);
+    private static float readFloat(JsonObject jsonObject, String string, float f) {
+        float f2;
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonPrimitive()) {
+            throw new IllegalArgumentException("Missing numeric key: " + string);
         }
-        double parsed;
         try {
-            parsed = value.getAsDouble();
-        } catch (RuntimeException exception) {
-            throw new IllegalArgumentException("Invalid double key: " + key, exception);
+            f2 = jsonElement.getAsFloat();
         }
-        if (!Double.isFinite(parsed)) {
-            throw new IllegalArgumentException("Non-finite double key: " + key);
+        catch (NumberFormatException | UnsupportedOperationException runtimeException) {
+            throw new IllegalArgumentException("Invalid float key: " + string, runtimeException);
         }
-        return Math.max(min, parsed);
+        if (!Float.isFinite(f2)) {
+            throw new IllegalArgumentException("Non-finite float key: " + string);
+        }
+        return Math.max(f, f2);
     }
 
-    private static String readString(JsonObject json, String key) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonPrimitive() || !value.getAsJsonPrimitive().isString()) {
-            throw new IllegalArgumentException("Missing string key: " + key);
+    private static double readDouble(JsonObject jsonObject, String string, double d) {
+        double d2;
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonPrimitive()) {
+            throw new IllegalArgumentException("Missing numeric key: " + string);
         }
-        String parsed = value.getAsString();
-        if (parsed == null || parsed.isBlank()) {
-            throw new IllegalArgumentException("Blank string key: " + key);
+        try {
+            d2 = jsonElement.getAsDouble();
         }
-        return parsed.trim();
+        catch (NumberFormatException | UnsupportedOperationException runtimeException) {
+            throw new IllegalArgumentException("Invalid double key: " + string, runtimeException);
+        }
+        if (!Double.isFinite(d2)) {
+            throw new IllegalArgumentException("Non-finite double key: " + string);
+        }
+        return Math.max(d, d2);
     }
 
-    private static List<String> readStringList(JsonObject json, String key) {
-        JsonArray array = getArray(json, key);
-        if (array == null) {
+    private static String readString(JsonObject jsonObject, String string) {
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonPrimitive() || !jsonElement.getAsJsonPrimitive().isString()) {
+            throw new IllegalArgumentException("Missing string key: " + string);
+        }
+        String string2 = jsonElement.getAsString();
+        if (string2 == null || string2.isBlank()) {
+            throw new IllegalArgumentException("Blank string key: " + string);
+        }
+        return string2.trim();
+    }
+
+    private static List<String> readStringList(JsonObject jsonObject, String string) {
+        JsonArray jsonArray = ConfigLoader.getArray(jsonObject, string);
+        if (jsonArray == null) {
             return List.of();
         }
-        List<String> values = new ArrayList<>();
-        for (JsonElement element : array) {
-            if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
-                continue;
-            }
-            String item = element.getAsString();
-            if (item == null || item.isBlank()) {
-                continue;
-            }
-            values.add(item.trim());
+        ArrayList<String> arrayList = new ArrayList<String>();
+        for (JsonElement jsonElement : jsonArray) {
+            String string2;
+            if (!jsonElement.isJsonPrimitive() || !jsonElement.getAsJsonPrimitive().isString() || (string2 = jsonElement.getAsString()) == null || string2.isBlank()) continue;
+            arrayList.add(string2.trim());
         }
-        return List.copyOf(values);
+        return List.copyOf(arrayList);
     }
 
-    private static List<Integer> readIntList(JsonObject json, String key) {
-        JsonArray array = getArray(json, key);
-        if (array == null) {
+    private static List<Integer> readIntList(JsonObject jsonObject, String string) {
+        JsonArray jsonArray = ConfigLoader.getArray(jsonObject, string);
+        if (jsonArray == null) {
             return List.of();
         }
-        List<Integer> values = new ArrayList<>();
-        for (JsonElement element : array) {
-            if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isNumber()) {
-                continue;
-            }
-            int parsed = element.getAsInt();
-            if (parsed <= 0) {
-                continue;
-            }
-            values.add(parsed);
+        ArrayList<Integer> arrayList = new ArrayList<Integer>();
+        for (JsonElement jsonElement : jsonArray) {
+            int n;
+            if (!jsonElement.isJsonPrimitive() || !jsonElement.getAsJsonPrimitive().isNumber() || (n = jsonElement.getAsInt()) <= 0) continue;
+            arrayList.add(n);
         }
-        Collections.sort(values);
-        return values;
+        Collections.sort(arrayList);
+        return arrayList;
     }
 
-    private static JsonArray getArray(JsonObject json, String key) {
-        JsonElement value = json.get(key);
-        if (value == null || !value.isJsonArray()) {
+    private static JsonArray getArray(JsonObject jsonObject, String string) {
+        JsonElement jsonElement = jsonObject.get(string);
+        if (jsonElement == null || !jsonElement.isJsonArray()) {
             return null;
         }
-        return value.getAsJsonArray();
+        return jsonElement.getAsJsonArray();
     }
 
-    private static boolean hasKey(JsonObject json, String key) {
-        JsonElement value = json.get(key);
-        return value != null && !value.isJsonNull();
+    private static boolean hasKey(JsonObject jsonObject, String string) {
+        JsonElement jsonElement = jsonObject.get(string);
+        return jsonElement != null && !jsonElement.isJsonNull();
     }
 }

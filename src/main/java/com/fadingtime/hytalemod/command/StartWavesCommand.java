@@ -1,3 +1,17 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.protocol.GameMode
+ *  com.hypixel.hytale.server.core.Message
+ *  com.hypixel.hytale.server.core.command.system.CommandContext
+ *  com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ */
 package com.fadingtime.hytalemod.command;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -21,13 +35,14 @@ extends AbstractPlayerCommand {
         this.setPermissionGroup(GameMode.Creative);
     }
 
-    protected void execute(CommandContext context, Store<EntityStore> store, Ref<EntityStore> playerRef, PlayerRef playerRefComponent, World world) {
-        MobWaveSpawner spawner = HytaleMod.getInstance().getMobWaveSpawner();
-        if (spawner == null || playerRef == null || !playerRef.isValid()) {
-            context.sendMessage(Message.raw("Wave start failed."));
+    protected void execute(CommandContext commandContext, Store<EntityStore> store, Ref<EntityStore> ref, PlayerRef playerRef, World world) {
+        MobWaveSpawner mobWaveSpawner = HytaleMod.getInstance().getMobWaveSpawner();
+        if (mobWaveSpawner == null || ref == null || !ref.isValid()) {
+            commandContext.sendMessage(Message.raw((String)"Wave start failed."));
             return;
         }
-        spawner.startWavesForPlayer(playerRef);
-        context.sendMessage(Message.raw("Waves started."));
+        mobWaveSpawner.startWavesForPlayer(ref);
+        commandContext.sendMessage(Message.raw((String)"Waves started."));
     }
 }
+

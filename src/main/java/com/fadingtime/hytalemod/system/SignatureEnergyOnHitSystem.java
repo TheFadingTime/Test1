@@ -1,3 +1,22 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.ArchetypeChunk
+ *  com.hypixel.hytale.component.CommandBuffer
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.component.query.Query
+ *  com.hypixel.hytale.server.core.entity.entities.ProjectileComponent
+ *  com.hypixel.hytale.server.core.modules.entity.damage.Damage
+ *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$ProjectileSource
+ *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$Source
+ *  com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem
+ *  com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap
+ *  com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.hypixel.hytale.component.ArchetypeChunk;
@@ -23,29 +42,29 @@ extends DamageEventSystem {
         return QUERY;
     }
 
-    public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+    public void handle(int n, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
         Damage.Source source = damage.getSource();
         if (!(source instanceof Damage.ProjectileSource)) {
             return;
         }
         Damage.ProjectileSource projectileSource = (Damage.ProjectileSource)source;
-        Ref shooterRef = projectileSource.getRef();
-        Ref projectileRef = projectileSource.getProjectile();
-        if (shooterRef == null || projectileRef == null) {
+        Ref ref = projectileSource.getRef();
+        Ref ref2 = projectileSource.getProjectile();
+        if (ref == null || ref2 == null) {
             return;
         }
-        ProjectileComponent projectileComponent = (ProjectileComponent)store.getComponent(projectileRef, ProjectileComponent.getComponentType());
+        ProjectileComponent projectileComponent = (ProjectileComponent)store.getComponent(ref2, ProjectileComponent.getComponentType());
         if (projectileComponent == null) {
             return;
         }
         if (!VOLLEY_PROJECTILE_ID.equals(projectileComponent.getProjectileAssetName())) {
             return;
         }
-        EntityStatMap statMap = (EntityStatMap)store.getComponent(shooterRef, EntityStatMap.getComponentType());
-        if (statMap == null) {
+        EntityStatMap entityStatMap = (EntityStatMap)store.getComponent(ref, EntityStatMap.getComponentType());
+        if (entityStatMap == null) {
             return;
         }
-        statMap.addStatValue(DefaultEntityStatTypes.getSignatureEnergy(), 1.0f);
+        entityStatMap.addStatValue(DefaultEntityStatTypes.getSignatureEnergy(), 1.0f);
     }
 }
 

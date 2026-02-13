@@ -1,3 +1,27 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.ArchetypeChunk
+ *  com.hypixel.hytale.component.CommandBuffer
+ *  com.hypixel.hytale.component.ComponentType
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.component.query.Query
+ *  com.hypixel.hytale.component.system.tick.EntityTickingSystem
+ *  com.hypixel.hytale.server.core.entity.entities.Player
+ *  com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud
+ *  com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent
+ *  com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap
+ *  com.hypixel.hytale.server.core.modules.entitystats.EntityStatValue
+ *  com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ *  com.hypixel.hytale.server.npc.entities.NPCEntity
+ *  javax.annotation.Nonnull
+ *  javax.annotation.Nullable
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -28,7 +52,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -40,8 +63,6 @@ extends EntityTickingSystem<EntityStore> {
     private static final String TOAD_BOSS_NAME = "Magma Toad";
     private static final String SKELETON_ROLE_NAME = "Skeleton";
     private static final String WRAITH_BOSS_NAME = "Wraith";
-    private static final boolean HUD_DEBUG = true;
-    private static final long HUD_LOG_INTERVAL_MS = 500L;
     @Nonnull
     private final ComponentType<EntityStore, BossWaveComponent> bossComponentType;
     @Nonnull
@@ -56,11 +77,9 @@ extends EntityTickingSystem<EntityStore> {
     private final ConcurrentMap<UUID, BossHudState> hudByPlayer = new ConcurrentHashMap<UUID, BossHudState>();
     @Nonnull
     private final Set<UUID> suppressedPlayers = ConcurrentHashMap.newKeySet();
-    @Nonnull
-    private final ConcurrentMap<UUID, Long> lastHudLog = new ConcurrentHashMap<UUID, Long>();
 
-    public BossHudSystem(@Nonnull ComponentType<EntityStore, BossWaveComponent> bossComponentType, @Nonnull MobWaveSpawner mobWaveSpawner) {
-        this.bossComponentType = bossComponentType;
+    public BossHudSystem(@Nonnull ComponentType<EntityStore, BossWaveComponent> componentType, @Nonnull MobWaveSpawner mobWaveSpawner) {
+        this.bossComponentType = componentType;
         this.entityStatMapComponentType = EntityStatMap.getComponentType();
         this.deathComponentType = DeathComponent.getComponentType();
         this.query = Query.and((Query[])new Query[]{this.bossComponentType, this.entityStatMapComponentType});
@@ -72,325 +91,306 @@ extends EntityTickingSystem<EntityStore> {
         return this.query;
     }
 
-    public boolean isParallel(int archetypeChunkSize, int taskCount) {
+    public boolean isParallel(int n, int n2) {
         return false;
     }
 
-    public void tick(float dt, int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
-        World world = store.getExternalData().getWorld();
+    public void tick(float f, int n, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer) {
+        List<Ref<EntityStore>> list;
+        World world = ((EntityStore)store.getExternalData()).getWorld();
         if (world == null || !world.isTicking()) {
             return;
         }
-        BossWaveComponent bossComponent = (BossWaveComponent)archetypeChunk.getComponent(index, this.bossComponentType);
-        if (bossComponent == null || bossComponent.getOwnerId() == null) {
+        BossWaveComponent bossWaveComponent = (BossWaveComponent)archetypeChunk.getComponent(n, this.bossComponentType);
+        if (bossWaveComponent == null || bossWaveComponent.getOwnerId() == null) {
             return;
         }
-        UUID ownerId = this.normalizeOwnerId(bossComponent.getOwnerId());
-        Ref<EntityStore> bossRef = archetypeChunk.getReferenceTo(index);
-        if (bossRef != null && (store.getComponent(bossRef, this.deathComponentType) != null || commandBuffer.getComponent(bossRef, this.deathComponentType) != null)) {
-            this.clearBossHud(ownerId);
+        UUID uUID = this.normalizeOwnerId(bossWaveComponent.getOwnerId());
+        Ref ref = archetypeChunk.getReferenceTo(n);
+        if (ref != null && (store.getComponent(ref, this.deathComponentType) != null || commandBuffer.getComponent(ref, this.deathComponentType) != null)) {
+            this.clearBossHud(uUID);
             return;
         }
-        EntityStatMap statMap = (EntityStatMap)archetypeChunk.getComponent(index, this.entityStatMapComponentType);
-        if (statMap == null) {
+        EntityStatMap entityStatMap = (EntityStatMap)archetypeChunk.getComponent(n, this.entityStatMapComponentType);
+        if (entityStatMap == null) {
             return;
         }
-        EntityStatValue healthStat = statMap.get(DefaultEntityStatTypes.getHealth());
-        if (healthStat == null) {
+        EntityStatValue entityStatValue = entityStatMap.get(DefaultEntityStatTypes.getHealth());
+        if (entityStatValue == null) {
             return;
         }
-        float ratio = BossHudSystem.clamp01(healthStat.asPercentage());
-        String bossName = BossHudSystem.resolveBossName(store, bossRef);
-        if (bossName == null || bossName.isBlank()) {
-            bossName = DEFAULT_BOSS_NAME;
+        float f2 = BossHudSystem.clamp01(entityStatValue.asPercentage());
+        String string = BossHudSystem.resolveBossName(store, (Ref<EntityStore>)ref);
+        if (string == null || string.isBlank()) {
+            string = DEFAULT_BOSS_NAME;
         }
-        List<Ref<EntityStore>> playerRefs = this.mobWaveSpawner.getPlayerRefsForOwner(ownerId);
-        if (playerRefs.isEmpty()) {
+        if ((list = this.mobWaveSpawner.getPlayerRefsForOwner(uUID)).isEmpty()) {
             return;
         }
-        for (Ref<EntityStore> playerRef : playerRefs) {
-            this.updateHudForPlayer(ownerId, playerRef, bossName, ratio);
+        for (Ref<EntityStore> ref2 : list) {
+            this.updateHudForPlayer(uUID, ref2, string, f2);
         }
     }
 
-    private void updateHudForPlayer(@Nonnull UUID ownerId, @Nonnull Ref<EntityStore> playerRef, @Nonnull String bossName, float ratio) {
-        if (!playerRef.isValid()) {
+    private void updateHudForPlayer(@Nonnull UUID uUID2, @Nonnull Ref<EntityStore> ref, @Nonnull String string, float f) {
+        if (!ref.isValid()) {
             return;
         }
-        Store<EntityStore> playerStore = (Store<EntityStore>)playerRef.getStore();
-        if (playerStore == null) {
+        Store store = ref.getStore();
+        if (store == null) {
             return;
         }
-        Player playerComponent = (Player)playerStore.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)playerStore.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        if (this.suppressedPlayers.contains(playerId)) {
+        UUID uUID3 = playerRef.getUuid();
+        if (this.suppressedPlayers.contains(uUID3)) {
             return;
         }
-        BossHudState state = this.hudByPlayer.computeIfAbsent(playerId, id -> new BossHudState());
-        state.ownerId = ownerId;
-        CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
-        if (currentHud instanceof BossBarHud) {
-            if (state.hud != currentHud) {
-                state.hud = (BossBarHud)currentHud;
-                state.lastRatio = -1.0f;
-                state.lastName = null;
-                state.hidden = false;
+        BossHudState bossHudState = this.hudByPlayer.computeIfAbsent(uUID3, uUID -> new BossHudState());
+        bossHudState.ownerId = uUID2;
+        CustomUIHud customUIHud = player.getHudManager().getCustomHud();
+        if (customUIHud instanceof BossBarHud) {
+            if (bossHudState.hud != customUIHud) {
+                bossHudState.hud = (BossBarHud)customUIHud;
+                bossHudState.lastRatio = -1.0f;
+                bossHudState.lastName = null;
+                bossHudState.hidden = false;
             }
-        } else if (state.hud != null && currentHud != state.hud) {
-            state.hud = null;
-            state.lastRatio = -1.0f;
-            state.lastName = null;
-            state.hidden = false;
+        } else if (bossHudState.hud != null && customUIHud != bossHudState.hud) {
+            bossHudState.hud = null;
+            bossHudState.lastRatio = -1.0f;
+            bossHudState.lastName = null;
+            bossHudState.hidden = false;
         }
-        if (state.hud == null) {
-            if (currentHud != null && !(currentHud instanceof BossBarHud)) {
+        if (bossHudState.hud == null) {
+            if (customUIHud != null && !(customUIHud instanceof BossBarHud)) {
                 return;
             }
-            state.hud = new BossBarHud(playerRefComponent, bossName, ratio);
-            state.lastRatio = ratio;
-            state.lastName = bossName;
-            state.hidden = false;
-            this.logHud(ownerId, "HUD_CREATE player=%s name=%s ratio=%.3f world=%s", playerId, bossName, Float.valueOf(ratio), BossHudSystem.getWorldName(playerStore));
-            playerComponent.getHudManager().setCustomHud(playerRefComponent, (CustomUIHud)state.hud);
-            state.hud.setBossVisible(true);
-            this.logHud(ownerId, "HUD_VISIBLE true player=%s (create)", playerId);
+            bossHudState.hud = new BossBarHud(playerRef, string, f);
+            bossHudState.lastRatio = f;
+            bossHudState.lastName = string;
+            bossHudState.hidden = false;
+            this.logHud(uUID2, "HUD_CREATE player=%s name=%s ratio=%.3f world=%s", uUID3, string, Float.valueOf(f), BossHudSystem.getWorldName((Store<EntityStore>)store));
+            player.getHudManager().setCustomHud(playerRef, (CustomUIHud)bossHudState.hud);
+            bossHudState.hud.setBossVisible(true);
+            this.logHud(uUID2, "HUD_VISIBLE true player=%s (create)", uUID3);
             return;
         }
-        if (!state.hud.isBossVisible()) {
-            state.hud.setBossVisible(true);
-            this.logHud(ownerId, "HUD_VISIBLE true player=%s", playerId);
+        if (!bossHudState.hud.isBossVisible()) {
+            bossHudState.hud.setBossVisible(true);
+            this.logHud(uUID2, "HUD_VISIBLE true player=%s", uUID3);
         }
-        if (state.hidden) {
-            state.hud.setBossVisible(true);
-            state.hud.updateBossName(bossName);
-            state.hud.updateHealth(ratio);
-            state.lastRatio = ratio;
-            state.lastName = bossName;
-            state.hidden = false;
-            this.logHud(ownerId, "HUD_SHOW player=%s name=%s ratio=%.3f", playerId, bossName, Float.valueOf(ratio));
+        if (bossHudState.hidden) {
+            bossHudState.hud.setBossVisible(true);
+            bossHudState.hud.updateBossName(string);
+            bossHudState.hud.updateHealth(f);
+            bossHudState.lastRatio = f;
+            bossHudState.lastName = string;
+            bossHudState.hidden = false;
+            this.logHud(uUID2, "HUD_SHOW player=%s name=%s ratio=%.3f", uUID3, string, Float.valueOf(f));
             return;
         }
-        if (state.lastName == null || !state.lastName.equals(bossName)) {
-            state.hud.updateBossName(bossName);
-            state.lastName = bossName;
-            this.logHud(ownerId, "HUD_NAME player=%s name=%s", playerId, bossName);
+        if (bossHudState.lastName == null || !bossHudState.lastName.equals(string)) {
+            bossHudState.hud.updateBossName(string);
+            bossHudState.lastName = string;
+            this.logHud(uUID2, "HUD_NAME player=%s name=%s", uUID3, string);
         }
-        if (Math.abs(ratio - state.lastRatio) >= UPDATE_EPSILON) {
-            state.hud.updateHealth(ratio);
-            state.lastRatio = ratio;
-            this.logHudThrottled(ownerId, "HUD_HEALTH player=%s ratio=%.3f", playerId, Float.valueOf(ratio));
+        if (Math.abs(f - bossHudState.lastRatio) >= 0.001f) {
+            bossHudState.hud.updateHealth(f);
+            bossHudState.lastRatio = f;
+            this.logHudThrottled(uUID2, "HUD_HEALTH player=%s ratio=%.3f", uUID3, Float.valueOf(f));
         }
     }
 
-    public void hideBossHud(@Nonnull UUID ownerOrPlayerId) {
-        UUID ownerId = this.normalizeOwnerId(ownerOrPlayerId);
-        if (this.mobWaveSpawner.isTrackedPlayer(ownerOrPlayerId)) {
-            Ref<EntityStore> playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
-            if (playerRef != null) {
-                this.hideBossHudForPlayer(ownerId, playerRef);
+    public void hideBossHud(@Nonnull UUID uUID) {
+        UUID uUID2 = this.normalizeOwnerId(uUID);
+        if (this.mobWaveSpawner.isTrackedPlayer(uUID)) {
+            Ref<EntityStore> ref = this.mobWaveSpawner.getPlayerRef(uUID);
+            if (ref != null) {
+                this.hideBossHudForPlayer(uUID2, ref);
             }
             return;
         }
-        for (Ref<EntityStore> playerRef : this.mobWaveSpawner.getPlayerRefsForOwner(ownerId)) {
-            this.hideBossHudForPlayer(ownerId, playerRef);
+        for (Ref<EntityStore> ref : this.mobWaveSpawner.getPlayerRefsForOwner(uUID2)) {
+            this.hideBossHudForPlayer(uUID2, ref);
         }
     }
 
-    private void hideBossHudForPlayer(@Nonnull UUID ownerId, @Nonnull Ref<EntityStore> playerRef) {
-        if (!playerRef.isValid()) {
+    private void hideBossHudForPlayer(@Nonnull UUID uUID, @Nonnull Ref<EntityStore> ref) {
+        if (!ref.isValid()) {
             return;
         }
-        Store<EntityStore> store = (Store<EntityStore>)playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        BossHudState state = (BossHudState)this.hudByPlayer.get(playerId);
-        if (state == null || state.hud == null) {
+        UUID uUID2 = playerRef.getUuid();
+        BossHudState bossHudState = (BossHudState)this.hudByPlayer.get(uUID2);
+        if (bossHudState == null || bossHudState.hud == null) {
             return;
         }
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
             return;
         }
-        if (playerComponent.getHudManager().getCustomHud() != state.hud) {
+        if (player.getHudManager().getCustomHud() != bossHudState.hud) {
             return;
         }
-        state.hud.setBossVisible(false);
-        state.hud.setLevelHudVisible(false);
-        state.hidden = true;
-        this.logHud(ownerId, "HUD_HIDE applied player=%s", playerId);
+        bossHudState.hud.setBossVisible(false);
+        bossHudState.hud.setLevelHudVisible(false);
+        bossHudState.hidden = true;
+        this.logHud(uUID, "HUD_HIDE applied player=%s", uUID2);
     }
 
-    public void clearBossHud(@Nonnull UUID ownerOrPlayerId) {
-        UUID ownerId = this.normalizeOwnerId(ownerOrPlayerId);
-        this.logHud(ownerId, "HUD_CLEAR request");
-        if (this.mobWaveSpawner.isTrackedPlayer(ownerOrPlayerId)) {
-            Ref<EntityStore> playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
-            if (playerRef != null) {
-                this.clearBossHudForPlayer(ownerId, playerRef);
+    public void clearBossHud(@Nonnull UUID uUID) {
+        UUID uUID2 = this.normalizeOwnerId(uUID);
+        this.logHud(uUID2, "HUD_CLEAR request", new Object[0]);
+        if (this.mobWaveSpawner.isTrackedPlayer(uUID)) {
+            Ref<EntityStore> ref = this.mobWaveSpawner.getPlayerRef(uUID);
+            if (ref != null) {
+                this.clearBossHudForPlayer(uUID2, ref);
             } else {
-                this.hudByPlayer.remove(ownerOrPlayerId);
+                this.hudByPlayer.remove(uUID);
             }
             return;
         }
-        List<Ref<EntityStore>> playerRefs = this.mobWaveSpawner.getPlayerRefsForOwner(ownerId);
-        if (playerRefs.isEmpty()) {
-            for (Map.Entry<UUID, BossHudState> entry : this.hudByPlayer.entrySet()) {
-                BossHudState state = entry.getValue();
-                if (state == null || state.ownerId == null || !ownerId.equals(state.ownerId)) continue;
-                this.hudByPlayer.remove(entry.getKey(), state);
+        List<Ref<EntityStore>> list = this.mobWaveSpawner.getPlayerRefsForOwner(uUID2);
+        if (list.isEmpty()) {
+            for (Map.Entry entry : this.hudByPlayer.entrySet()) {
+                BossHudState bossHudState = (BossHudState)entry.getValue();
+                if (bossHudState == null || bossHudState.ownerId == null || !uUID2.equals(bossHudState.ownerId)) continue;
+                this.hudByPlayer.remove(entry.getKey(), bossHudState);
             }
             return;
         }
-        for (Ref<EntityStore> playerRef : playerRefs) {
-            this.clearBossHudForPlayer(ownerId, playerRef);
+        for (Ref<EntityStore> ref : list) {
+            this.clearBossHudForPlayer(uUID2, ref);
         }
     }
 
-    private void clearBossHudForPlayer(@Nonnull UUID ownerId, @Nonnull Ref<EntityStore> playerRef) {
-        if (!playerRef.isValid()) {
+    private void clearBossHudForPlayer(@Nonnull UUID uUID, @Nonnull Ref<EntityStore> ref) {
+        if (!ref.isValid()) {
             return;
         }
-        Store<EntityStore> store = (Store<EntityStore>)playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        BossHudState state = (BossHudState)this.hudByPlayer.remove(playerId);
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+        UUID uUID2 = playerRef.getUuid();
+        BossHudState bossHudState = (BossHudState)this.hudByPlayer.remove(uUID2);
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
             return;
         }
-        if (state != null && state.hud != null) {
-            if (playerComponent.getHudManager().getCustomHud() == state.hud) {
-                state.hud.setBossVisible(false);
-                state.hud.setLevelHudVisible(false);
-                this.logHud(ownerId, "HUD_CLEAR applied state.hud player=%s", playerId);
+        if (bossHudState != null && bossHudState.hud != null) {
+            if (player.getHudManager().getCustomHud() == bossHudState.hud) {
+                bossHudState.hud.setBossVisible(false);
+                bossHudState.hud.setLevelHudVisible(false);
+                this.logHud(uUID, "HUD_CLEAR applied state.hud player=%s", uUID2);
             }
             return;
         }
-        CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
-        if (currentHud instanceof BossBarHud) {
-            ((BossBarHud)currentHud).setBossVisible(false);
-            ((BossBarHud)currentHud).setLevelHudVisible(false);
-            this.logHud(ownerId, "HUD_CLEAR applied currentHud player=%s", playerId);
+        CustomUIHud customUIHud = player.getHudManager().getCustomHud();
+        if (customUIHud instanceof BossBarHud) {
+            ((BossBarHud)customUIHud).setBossVisible(false);
+            ((BossBarHud)customUIHud).setLevelHudVisible(false);
+            this.logHud(uUID, "HUD_CLEAR applied currentHud player=%s", uUID2);
         }
     }
 
-    public void setHudSuppressed(@Nonnull UUID ownerOrPlayerId, boolean suppressed) {
-        if (this.mobWaveSpawner.isTrackedPlayer(ownerOrPlayerId)) {
-            if (suppressed) {
-                this.suppressedPlayers.add(ownerOrPlayerId);
+    public void setHudSuppressed(@Nonnull UUID uUID, boolean bl) {
+        if (this.mobWaveSpawner.isTrackedPlayer(uUID)) {
+            if (bl) {
+                this.suppressedPlayers.add(uUID);
             } else {
-                this.suppressedPlayers.remove(ownerOrPlayerId);
+                this.suppressedPlayers.remove(uUID);
             }
             return;
         }
-        UUID ownerId = this.normalizeOwnerId(ownerOrPlayerId);
-        for (Ref<EntityStore> playerRef : this.mobWaveSpawner.getPlayerRefsForOwner(ownerId)) {
-            Store<EntityStore> store = (Store<EntityStore>)playerRef.getStore();
-            if (store == null) continue;
-            PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-            if (playerRefComponent == null) continue;
-            UUID playerId = playerRefComponent.getUuid();
-            if (suppressed) {
-                this.suppressedPlayers.add(playerId);
+        UUID uUID2 = this.normalizeOwnerId(uUID);
+        for (Ref<EntityStore> ref : this.mobWaveSpawner.getPlayerRefsForOwner(uUID2)) {
+            PlayerRef playerRef;
+            Store store = ref.getStore();
+            if (store == null || (playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType())) == null) continue;
+            UUID uUID3 = playerRef.getUuid();
+            if (bl) {
+                this.suppressedPlayers.add(uUID3);
                 continue;
             }
-            this.suppressedPlayers.remove(playerId);
+            this.suppressedPlayers.remove(uUID3);
         }
     }
 
-    private void logHud(@Nonnull UUID ownerId, @Nonnull String format, Object ... args) {
-        if (!HUD_DEBUG) {
-            return;
-        }
-        HytaleMod.LOGGER.log(Level.INFO, "[HUD_DEBUG][" + ownerId + "] " + String.format(format, args));
+    private void logHud(@Nonnull UUID uUID, @Nonnull String string, Object ... objectArray) {
     }
 
-    private void logHudThrottled(@Nonnull UUID ownerId, @Nonnull String format, Object ... args) {
-        if (!this.shouldLog(ownerId, HUD_LOG_INTERVAL_MS)) {
-            return;
-        }
-        this.logHud(ownerId, format, args);
-    }
-
-    private boolean shouldLog(@Nonnull UUID ownerId, long intervalMs) {
-        long now = System.currentTimeMillis();
-        Long last = this.lastHudLog.get(ownerId);
-        if (last == null || now - last.longValue() >= intervalMs) {
-            this.lastHudLog.put(ownerId, now);
-            return true;
-        }
-        return false;
+    private void logHudThrottled(@Nonnull UUID uUID, @Nonnull String string, Object ... objectArray) {
     }
 
     @Nonnull
-    private UUID normalizeOwnerId(@Nonnull UUID ownerOrPlayerId) {
-        return this.mobWaveSpawner.resolveOwnerId(ownerOrPlayerId);
+    private UUID normalizeOwnerId(@Nonnull UUID uUID) {
+        return this.mobWaveSpawner.resolveOwnerId(uUID);
     }
 
     private static String getWorldName(@Nullable Store<EntityStore> store) {
         if (store == null) {
             return "null";
         }
-        World world = store.getExternalData().getWorld();
+        World world = ((EntityStore)store.getExternalData()).getWorld();
         if (world == null) {
             return "null";
         }
-        String name = world.getName();
-        if (name != null && !name.isBlank()) {
-            return name;
+        String string = world.getName();
+        if (string != null && !string.isBlank()) {
+            return string;
         }
         return Objects.toString(world.getWorldConfig() != null ? world.getWorldConfig().getDisplayName() : null, "unknown");
     }
 
-    private static float clamp01(float value) {
-        if (!Float.isFinite(value)) {
+    private static float clamp01(float f) {
+        if (!Float.isFinite(f)) {
             return 0.0f;
         }
-        if (value < 0.0f) {
+        if (f < 0.0f) {
             return 0.0f;
         }
-        if (value > 1.0f) {
+        if (f > 1.0f) {
             return 1.0f;
         }
-        return value;
+        return f;
     }
 
     @Nullable
-    private static String resolveBossName(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> bossRef) {
-        if (bossRef == null || !bossRef.isValid()) {
+    private static String resolveBossName(@Nonnull Store<EntityStore> store, @Nullable Ref<EntityStore> ref) {
+        if (ref == null || !ref.isValid()) {
             return null;
         }
-        NPCEntity npc = (NPCEntity)store.getComponent(bossRef, NPCEntity.getComponentType());
-        if (npc == null) {
+        NPCEntity nPCEntity = (NPCEntity)store.getComponent(ref, NPCEntity.getComponentType());
+        if (nPCEntity == null) {
             return null;
         }
-        String roleName = npc.getRoleName();
-        if (TOAD_ROLE_NAME.equals(roleName)) {
+        String string = nPCEntity.getRoleName();
+        if (TOAD_ROLE_NAME.equals(string)) {
             return TOAD_BOSS_NAME;
         }
-        if (WRAITH_BOSS_NAME.equals(roleName)) {
+        if (WRAITH_BOSS_NAME.equals(string)) {
             return WRAITH_BOSS_NAME;
         }
-        if (SKELETON_ROLE_NAME.equals(roleName)) {
+        if (SKELETON_ROLE_NAME.equals(string)) {
             return DEFAULT_BOSS_NAME;
         }
         return null;

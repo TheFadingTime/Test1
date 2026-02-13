@@ -1,9 +1,27 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.logger.HytaleLogger$Api
+ *  com.hypixel.hytale.server.core.HytaleServer
+ *  com.hypixel.hytale.server.core.entity.entities.Player
+ *  com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.WorldConfig
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
+import com.fadingtime.hytalemod.system.GamePauseController;
 import com.fadingtime.hytalemod.ui.PowerUpStorePage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
+import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage;
@@ -24,186 +42,201 @@ public final class StoreSessionManager {
     private final HytaleMod plugin;
     private final GamePauseController gamePauseController;
     private final long storeInputGraceMs;
-    private final ConcurrentMap<UUID, ScheduledFuture<?>> storeTimeouts = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, Integer> storeSessionByPlayer = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, Long> storeOpenedAt = new ConcurrentHashMap<>();
-    private final ConcurrentMap<UUID, ConcurrentLinkedQueue<ScheduledFuture<?>>> delayedTasksByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, ScheduledFuture<?>> storeTimeouts = new ConcurrentHashMap();
+    private final ConcurrentMap<UUID, Integer> storeSessionByPlayer = new ConcurrentHashMap<UUID, Integer>();
+    private final ConcurrentMap<UUID, Long> storeOpenedAt = new ConcurrentHashMap<UUID, Long>();
+    private final ConcurrentMap<UUID, ConcurrentLinkedQueue<ScheduledFuture<?>>> delayedTasksByPlayer = new ConcurrentHashMap();
 
-    public StoreSessionManager(@Nonnull HytaleMod plugin, @Nonnull GamePauseController gamePauseController, long storeInputGraceMs) {
-        this.plugin = plugin;
+    public StoreSessionManager(@Nonnull HytaleMod hytaleMod, @Nonnull GamePauseController gamePauseController, long l) {
+        this.plugin = hytaleMod;
         this.gamePauseController = gamePauseController;
-        this.storeInputGraceMs = storeInputGraceMs;
+        this.storeInputGraceMs = l;
     }
 
-    public void openStoreForPlayer(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, int level) {
-        UUID playerId = playerRefComponent.getUuid();
+    public void openStoreForPlayer(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player, @Nonnull PlayerRef playerRef, int n2) {
+        UUID uUID2 = playerRef.getUuid();
         World world = ((EntityStore)store.getExternalData()).getWorld();
         if (world == null) {
             return;
         }
-
-        int sessionId = this.storeSessionByPlayer.compute(playerId, (id, value) -> value == null ? 1 : value + 1);
-        ScheduledFuture<?> timeout = schedulePlayerWorldTask(world, playerRefComponent, () -> closeStoreInternal(playerRef, store, playerComponent, playerRefComponent, sessionId), 30000L);
-        ScheduledFuture<?> existing = this.storeTimeouts.put(playerId, timeout);
-        if (existing != null) {
-            existing.cancel(false);
+        this.cancelPlayerTasks(uUID2);
+        int n3 = this.storeSessionByPlayer.compute(uUID2, (uUID, n) -> n == null ? 1 : n + 1);
+        ScheduledFuture<?> scheduledFuture = this.schedulePlayerWorldTask(world, playerRef, () -> this.closeStoreInternal(ref, store, player, playerRef, n3), 30000L);
+        ScheduledFuture<?> scheduledFuture2 = this.storeTimeouts.put(uUID2, scheduledFuture);
+        if (scheduledFuture2 != null) {
+            scheduledFuture2.cancel(false);
         }
-
         for (int i = 1; i <= 8; ++i) {
-            final float factor = this.gamePauseController.computeSlowmoFactor(i, 8);
-            long delay = 1800L * i / 8L;
-            schedulePlayerWorldTask(world, playerRefComponent, () -> this.gamePauseController.applyTimeScale(store, factor), delay);
+            float f = this.gamePauseController.computeSlowmoFactor(i, 8);
+            long l = 1800L * (long)i / 8L;
+            this.schedulePlayerWorldTask(world, playerRef, () -> {
+                Integer sessionId = (Integer)this.storeSessionByPlayer.get(uUID2);
+                if (sessionId == null || sessionId != n3) {
+                    return;
+                }
+                this.gamePauseController.applyTimeScale(store, f);
+            }, l);
         }
-
-        schedulePlayerWorldTask(world, playerRefComponent, () -> {
-            this.gamePauseController.beginStorePause(world, store);
-            this.storeOpenedAt.put(playerId, System.currentTimeMillis());
-            playerComponent.getPageManager().openCustomPage(playerRef, store, new PowerUpStorePage(playerRefComponent, level));
+        this.schedulePlayerWorldTask(world, playerRef, () -> {
+            Integer currentSession = (Integer)this.storeSessionByPlayer.get(uUID2);
+            if (currentSession == null || currentSession != n3) {
+                return;
+            }
+            try {
+                this.gamePauseController.beginStorePause(world, store);
+                this.storeOpenedAt.put(uUID2, System.currentTimeMillis());
+                player.getPageManager().openCustomPage(ref, store, (CustomUIPage)new PowerUpStorePage(playerRef, n2));
+            }
+            catch (RuntimeException runtimeException) {
+                ((HytaleLogger.Api)this.plugin.getLogger().at(Level.WARNING).withCause((Throwable)runtimeException)).log("Store failed for " + uUID2);
+                ScheduledFuture<?> timeoutTask = this.storeTimeouts.remove(uUID2);
+                if (timeoutTask != null) {
+                    timeoutTask.cancel(false);
+                }
+                this.storeSessionByPlayer.remove(uUID2, currentSession);
+                this.storeOpenedAt.remove(uUID2);
+                this.cancelPlayerTasks(uUID2);
+                this.gamePauseController.forceResume(world, store);
+            }
         }, 1800L);
     }
 
-    public void closeStoreForPlayer(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store) {
-        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
-            return;
-        }
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+    public void closeStoreForPlayer(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (playerRef == null || player == null) {
             return;
         }
         World world = ((EntityStore)store.getExternalData()).getWorld();
         if (world == null) {
             return;
         }
-        Integer sessionId = this.storeSessionByPlayer.get(playerRefComponent.getUuid());
-        if (sessionId == null) {
+        Integer n = (Integer)this.storeSessionByPlayer.get(playerRef.getUuid());
+        if (n == null) {
             return;
         }
-        world.execute(() -> closeStoreInternal(playerRef, store, playerComponent, playerRefComponent, sessionId));
+        world.execute(() -> this.closeStoreInternal(ref, store, player, playerRef, n));
     }
 
-    public boolean canAcceptStoreSelection(@Nonnull UUID playerId) {
-        Long openedAt = this.storeOpenedAt.get(playerId);
-        if (openedAt == null) {
+    public boolean canAcceptStoreSelection(@Nonnull UUID uUID) {
+        Long l = (Long)this.storeOpenedAt.get(uUID);
+        if (l == null) {
             return true;
         }
-        return System.currentTimeMillis() - openedAt >= this.storeInputGraceMs;
+        return System.currentTimeMillis() - l >= this.storeInputGraceMs;
     }
 
-    public void cancelAllScheduledTasks(@Nonnull UUID playerId) {
-        ScheduledFuture<?> timeout = this.storeTimeouts.remove(playerId);
-        if (timeout != null) {
-            timeout.cancel(false);
+    public void cancelAllScheduledTasks(@Nonnull UUID uUID) {
+        ScheduledFuture scheduledFuture = (ScheduledFuture)this.storeTimeouts.remove(uUID);
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
         }
-        cancelPlayerTasks(playerId);
-        this.storeSessionByPlayer.remove(playerId);
-        this.storeOpenedAt.remove(playerId);
+        this.cancelPlayerTasks(uUID);
+        this.storeSessionByPlayer.remove(uUID);
+        this.storeOpenedAt.remove(uUID);
     }
 
-    private void closeStoreInternal(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, int sessionId) {
-        UUID playerId = playerRefComponent.getUuid();
-        Integer currentSession = this.storeSessionByPlayer.get(playerId);
-        if (currentSession == null || currentSession != sessionId) {
+    private void closeStoreInternal(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player, @Nonnull PlayerRef playerRef, int n) {
+        World world;
+        UUID uUID = playerRef.getUuid();
+        Integer n2 = (Integer)this.storeSessionByPlayer.get(uUID);
+        if (n2 == null || n2 != n) {
             return;
         }
-        ScheduledFuture<?> timeout = this.storeTimeouts.remove(playerId);
-        if (timeout == null) {
-            return;
+        ScheduledFuture scheduledFuture = (ScheduledFuture)this.storeTimeouts.remove(uUID);
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
         }
-        timeout.cancel(false);
-        this.storeSessionByPlayer.remove(playerId, sessionId);
-        this.storeOpenedAt.remove(playerId);
-
-        CustomUIPage currentPage = playerComponent.getPageManager().getCustomPage();
-        if (currentPage instanceof PowerUpStorePage) {
-            ((PowerUpStorePage)currentPage).requestClose();
+        this.storeSessionByPlayer.remove(uUID, n);
+        this.storeOpenedAt.remove(uUID);
+        this.cancelPlayerTasks(uUID);
+        CustomUIPage customUIPage = player.getPageManager().getCustomPage();
+        if (customUIPage instanceof PowerUpStorePage) {
+            ((PowerUpStorePage)customUIPage).requestClose();
         }
-
-        World world = ((EntityStore)store.getExternalData()).getWorld();
-        if (world != null) {
+        if ((world = ((EntityStore)store.getExternalData()).getWorld()) != null) {
             this.gamePauseController.endStorePause(world, store);
         }
     }
 
-    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action, long delayMillis) {
-        UUID playerId = playerRefComponent.getUuid();
-        final ScheduledFuture<?>[] holder = new ScheduledFuture<?>[1];
-        ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
-            ScheduledFuture<?> self = holder[0];
-            if (self != null) {
-                untrackPlayerTask(playerId, self);
+    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRef, @Nonnull Runnable runnable, long l) {
+        ScheduledFuture<?>[] scheduledFutureArray = new ScheduledFuture[1];
+        UUID uUID = playerRef.getUuid();
+        ScheduledFuture<?> scheduledFuture = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+            ScheduledFuture<?> trackedFuture = scheduledFutureArray[0];
+            if (trackedFuture != null) {
+                this.untrackPlayerTask(uUID, trackedFuture);
             }
-            if (!isPlayerInWorld(playerRefComponent, world)) {
+            if (!StoreSessionManager.isPlayerInWorld(playerRef, world)) {
                 return;
             }
-            executeIfTicking(world, action);
-        }, delayMillis, TimeUnit.MILLISECONDS);
-        holder[0] = future;
-        trackPlayerTask(playerId, future);
-        return future;
+            this.executeIfTicking(world, runnable);
+        }, l, TimeUnit.MILLISECONDS);
+        scheduledFutureArray[0] = scheduledFuture;
+        this.trackPlayerTask(uUID, scheduledFuture);
+        return scheduledFuture;
     }
 
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
+    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable runnable) {
         if (!world.isTicking()) {
             return;
         }
         try {
-            world.execute(action);
-        } catch (IllegalThreadStateException exception) {
-            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
+            world.execute(runnable);
+        }
+        catch (IllegalThreadStateException illegalThreadStateException) {
         }
     }
 
-    private void trackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        this.delayedTasksByPlayer.computeIfAbsent(playerId, id -> new ConcurrentLinkedQueue<>()).add(future);
+    private void trackPlayerTask(@Nonnull UUID uUID2, @Nonnull ScheduledFuture<?> scheduledFuture) {
+        this.delayedTasksByPlayer.computeIfAbsent(uUID2, uUID -> new ConcurrentLinkedQueue()).add(scheduledFuture);
     }
 
-    private void untrackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = this.delayedTasksByPlayer.get(playerId);
-        if (tasks == null) {
+    private void untrackPlayerTask(@Nonnull UUID uUID, @Nonnull ScheduledFuture<?> scheduledFuture) {
+        ConcurrentLinkedQueue<ScheduledFuture<?>> concurrentLinkedQueue = this.delayedTasksByPlayer.get(uUID);
+        if (concurrentLinkedQueue == null) {
             return;
         }
-        tasks.remove(future);
-        if (tasks.isEmpty()) {
-            this.delayedTasksByPlayer.remove(playerId, tasks);
+        concurrentLinkedQueue.remove(scheduledFuture);
+        if (concurrentLinkedQueue.isEmpty()) {
+            this.delayedTasksByPlayer.remove(uUID, concurrentLinkedQueue);
         }
     }
 
-    private void cancelPlayerTasks(@Nonnull UUID playerId) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = this.delayedTasksByPlayer.remove(playerId);
-        if (tasks == null) {
+    private void cancelPlayerTasks(@Nonnull UUID uUID) {
+        ConcurrentLinkedQueue<ScheduledFuture<?>> concurrentLinkedQueue = this.delayedTasksByPlayer.remove(uUID);
+        if (concurrentLinkedQueue == null) {
             return;
         }
-        for (ScheduledFuture<?> task : tasks) {
-            if (task != null) {
-                task.cancel(false);
-            }
+        for (ScheduledFuture<?> scheduledFuture : concurrentLinkedQueue) {
+            if (scheduledFuture == null) continue;
+            scheduledFuture.cancel(false);
         }
     }
 
-    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
-        Ref<EntityStore> playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
+    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRef, @Nonnull World world) {
+        Ref ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) {
             return false;
         }
-        Store<EntityStore> store = playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return false;
         }
-        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
-        if (currentWorld == null) {
+        World world2 = ((EntityStore)store.getExternalData()).getWorld();
+        if (world2 == null) {
             return false;
         }
-        WorldConfig currentConfig = currentWorld.getWorldConfig();
-        WorldConfig targetConfig = world.getWorldConfig();
-        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
-            return currentConfig.getUuid().equals(targetConfig.getUuid());
+        WorldConfig worldConfig = world2.getWorldConfig();
+        WorldConfig worldConfig2 = world.getWorldConfig();
+        if (worldConfig != null && worldConfig2 != null && worldConfig.getUuid() != null && worldConfig2.getUuid() != null) {
+            return worldConfig.getUuid().equals(worldConfig2.getUuid());
         }
-        String currentName = currentWorld.getName();
-        String targetName = world.getName();
-        if (currentName != null && targetName != null) {
-            return currentName.equals(targetName);
+        String string = world2.getName();
+        String string2 = world.getName();
+        if (string != null && string2 != null) {
+            return string.equals(string2);
         }
-        return currentWorld == world;
+        return world2 == world;
     }
 }

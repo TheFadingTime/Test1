@@ -1,3 +1,13 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.server.core.Message
+ *  com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud
+ *  com.hypixel.hytale.server.core.ui.builder.UICommandBuilder
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.ui;
 
 import com.hypixel.hytale.server.core.Message;
@@ -17,62 +27,62 @@ extends CustomUIHud {
     private int essenceRequired = 10;
     private boolean bossVisible;
 
-    public BossBarHud(@Nonnull PlayerRef playerRef, @Nonnull String bossName, float healthRatio) {
+    public BossBarHud(@Nonnull PlayerRef playerRef, @Nonnull String string, float f) {
         super(playerRef);
-        this.bossName = bossName;
-        this.healthRatio = healthRatio;
+        this.bossName = string;
+        this.healthRatio = f;
     }
 
-    public void updateHealth(float healthRatio) {
-        this.healthRatio = healthRatio;
-        UICommandBuilder builder = new UICommandBuilder();
-        builder.set("#ProgressBar.Value", healthRatio);
-        this.update(false, builder);
+    public void updateHealth(float f) {
+        this.healthRatio = f;
+        UICommandBuilder uICommandBuilder = new UICommandBuilder();
+        uICommandBuilder.set("#ProgressBar.Value", f);
+        this.update(false, uICommandBuilder);
     }
 
-    public void updateBossName(@Nonnull String bossName) {
-        this.bossName = bossName;
-        UICommandBuilder builder = new UICommandBuilder();
-        builder.set("#BossName.TextSpans", Message.raw((String)bossName));
-        this.update(false, builder);
+    public void updateBossName(@Nonnull String string) {
+        this.bossName = string;
+        UICommandBuilder uICommandBuilder = new UICommandBuilder();
+        uICommandBuilder.set("#BossName.TextSpans", Message.raw((String)string));
+        this.update(false, uICommandBuilder);
     }
 
-    public void updateLevel(int level, int essenceCount, int essenceRequired) {
-        this.level = Math.max(1, level);
-        this.essenceCount = Math.max(0, essenceCount);
-        this.essenceRequired = Math.max(10, essenceRequired);
-        UICommandBuilder builder = new UICommandBuilder();
-        builder.set("#LevelLabel.Text", String.format("LEVEL: %d ESSENCE: %d / %d", this.level, this.essenceCount, this.essenceRequired));
-        builder.set("#LevelProgressBar.Value", this.calculateProgress());
-        this.update(false, builder);
+    public void updateLevel(int n, int n2, int n3) {
+        this.level = Math.max(1, n);
+        this.essenceCount = Math.max(0, n2);
+        this.essenceRequired = Math.max(10, n3);
+        UICommandBuilder uICommandBuilder = new UICommandBuilder();
+        uICommandBuilder.set("#LevelLabel.Text", String.format("LEVEL: %d ESSENCE: %d / %d", this.level, this.essenceCount, this.essenceRequired));
+        uICommandBuilder.set("#LevelProgressBar.Value", this.calculateProgress());
+        this.update(false, uICommandBuilder);
     }
 
-    public void setBossVisible(boolean visible) {
-        this.bossVisible = visible;
-        UICommandBuilder builder = new UICommandBuilder();
-        builder.set("#BossBar.Visible", visible);
-        this.update(false, builder);
+    public void setBossVisible(boolean bl) {
+        this.bossVisible = bl;
+        UICommandBuilder uICommandBuilder = new UICommandBuilder();
+        uICommandBuilder.set("#BossBar.Visible", bl);
+        this.update(false, uICommandBuilder);
     }
 
-    public void setLevelHudVisible(boolean visible) {
-        UICommandBuilder builder = new UICommandBuilder();
-        builder.set("#LevelProgressHud.Visible", visible);
-        this.update(false, builder);
+    public void setLevelHudVisible(boolean bl) {
+        UICommandBuilder uICommandBuilder = new UICommandBuilder();
+        uICommandBuilder.set("#LevelProgressHud.Visible", bl);
+        this.update(false, uICommandBuilder);
     }
 
     public boolean isBossVisible() {
         return this.bossVisible;
     }
 
-    protected void build(@Nonnull UICommandBuilder builder) {
-        builder.append("BossBar.ui");
-        builder.append("HUD/LevelProgress.ui");
-        builder.set("#BossName.TextSpans", Message.raw((String)this.bossName));
-        builder.set("#ProgressBar.Value", this.healthRatio);
-        builder.set("#LevelLabel.Text", String.format("LEVEL: %d ESSENCE: %d / %d", this.level, this.essenceCount, this.essenceRequired));
-        builder.set("#LevelProgressBar.Value", this.calculateProgress());
-        builder.set("#BossBar.Visible", this.bossVisible);
-        builder.set("#LevelProgressHud.Visible", true);
+    protected void build(@Nonnull UICommandBuilder uICommandBuilder) {
+        uICommandBuilder.append("BossBar.ui");
+        uICommandBuilder.append("HUD/LevelProgress.ui");
+        uICommandBuilder.set("#BossName.TextSpans", Message.raw((String)this.bossName));
+        uICommandBuilder.set("#ProgressBar.Value", this.healthRatio);
+        uICommandBuilder.set("#LevelLabel.Text", String.format("LEVEL: %d ESSENCE: %d / %d", this.level, this.essenceCount, this.essenceRequired));
+        uICommandBuilder.set("#LevelProgressBar.Value", this.calculateProgress());
+        uICommandBuilder.set("#BossBar.Visible", this.bossVisible);
+        uICommandBuilder.set("#LevelProgressHud.Visible", true);
     }
 
     private float calculateProgress() {
@@ -82,3 +92,4 @@ extends CustomUIHud {
         return Math.min(1.0f, Math.max(0.0f, (float)this.essenceCount / (float)this.essenceRequired));
     }
 }
+

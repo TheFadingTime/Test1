@@ -1,23 +1,21 @@
-{
+﻿{
   "spawnCount": 5,
   "spawnCountPerWave": 5,
   "maxMobsPerWave": 20,
   "spawnIntervalMs": 10000,
-  "minSpawnRadius": 10.0,
-  "maxSpawnRadius": 20.0,
+  "minSpawnRadius": 30.0,
+  "maxSpawnRadius": 30.0,
   "spawnYOffset": 0.5,
-  "maxMobHealth": 50.0,
-  "waveHealthBonus": 10.0,
+  "maxMobHealth": 126.0,
   "lifeEssenceItemId": "Ingredient_Life_Essence",
   "hostileRoles": [
-    "Spirit_Ember",
-    "Skeleton",
-    "Zombie"
+    "Wave_Skeleton",
+    "Wave_Zombie_Burnt"
   ],
   "bosses": [
     {
       "id": "skeleton",
-      "role": "Skeleton",
+      "role": "Boss_Skeleton",
       "startWave": 5,
       "interval": 10,
       "scale": 4.0,
@@ -28,7 +26,7 @@
     },
     {
       "id": "toad",
-      "role": "Toad_Rhino_Magma",
+      "role": "Boss_Toad_Rhino_Magma",
       "startWave": 10,
       "interval": 10,
       "scale": 2.0,
@@ -39,7 +37,7 @@
     },
     {
       "id": "wraith",
-      "role": "Wraith",
+      "role": "Boss_Wraith",
       "waves": [
         40,
         50
@@ -52,3 +50,4 @@
     }
   ]
 }
+

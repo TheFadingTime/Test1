@@ -1,11 +1,16 @@
+/*
+ * Decompiled with CFR 0.152.
+ */
 package com.fadingtime.hytalemod.persistence;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -19,32 +24,35 @@ public final class PlayerStateStore {
     private final Path filePath;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
-    public PlayerStateStore(Path filePath) {
-        this.filePath = filePath;
+    public PlayerStateStore(Path path) {
+        this.filePath = path;
         try {
-            Path parent = this.filePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+            Path path2 = this.filePath.getParent();
+            if (path2 != null) {
+                Files.createDirectories(path2, new FileAttribute[0]);
             }
         }
-        catch (IOException exception) {
-            LOGGER.log(Level.WARNING, "Failed to create player state directory for " + this.filePath, exception);
+        catch (IOException iOException) {
+            LOGGER.log(Level.WARNING, "Failed to create player state directory for " + String.valueOf(this.filePath), iOException);
         }
         this.load();
     }
 
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
     public void load() {
         this.lock.writeLock().lock();
         try {
             this.props.clear();
-            if (!Files.exists(this.filePath)) {
+            if (!Files.exists(this.filePath, new LinkOption[0])) {
                 return;
             }
-            try (InputStream in = Files.newInputStream(this.filePath, StandardOpenOption.READ);){
-                this.props.load(in);
+            try (InputStream inputStream = Files.newInputStream(this.filePath, StandardOpenOption.READ);){
+                this.props.load(inputStream);
             }
-            catch (IOException exception) {
-                LOGGER.log(Level.WARNING, "Failed to load player state file: " + this.filePath, exception);
+            catch (IOException iOException) {
+                LOGGER.log(Level.WARNING, "Failed to load player state file: " + String.valueOf(this.filePath), iOException);
             }
         }
         finally {
@@ -62,27 +70,34 @@ public final class PlayerStateStore {
         }
     }
 
-    public PlayerLevelData loadLevel(UUID playerId) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public PlayerLevelData loadLevel(UUID uUID) {
         this.lock.readLock().lock();
         try {
-            String prefix = PlayerStateStore.playerPrefix(playerId);
-            int level = this.getInt(prefix + "level", 1);
-            int essence = this.getInt(prefix + "essence", 0);
-            int lastStoreLevel = this.getInt(prefix + "lastStoreLevel", 0);
-            return new PlayerLevelData(level, essence, lastStoreLevel);
+            String string = PlayerStateStore.playerPrefix(uUID);
+            int n = this.getInt(string + "level", 1);
+            int n2 = this.getInt(string + "essence", 0);
+            int n3 = this.getInt(string + "lastStoreLevel", 0);
+            PlayerLevelData playerLevelData = new PlayerLevelData(n, n2, n3);
+            return playerLevelData;
         }
         finally {
             this.lock.readLock().unlock();
         }
     }
 
-    public void saveLevel(UUID playerId, int level, int essence, int lastStoreLevel) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public void saveLevel(UUID uUID, int n, int n2, int n3) {
         this.lock.writeLock().lock();
         try {
-            String prefix = PlayerStateStore.playerPrefix(playerId);
-            this.props.setProperty(prefix + "level", Integer.toString(level));
-            this.props.setProperty(prefix + "essence", Integer.toString(essence));
-            this.props.setProperty(prefix + "lastStoreLevel", Integer.toString(lastStoreLevel));
+            String string = PlayerStateStore.playerPrefix(uUID);
+            this.props.setProperty(string + "level", Integer.toString(n));
+            this.props.setProperty(string + "essence", Integer.toString(n2));
+            this.props.setProperty(string + "lastStoreLevel", Integer.toString(n3));
             this.saveUnsafe();
         }
         finally {
@@ -90,39 +105,48 @@ public final class PlayerStateStore {
         }
     }
 
-    public PlayerPowerData loadPower(UUID playerId) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public PlayerPowerData loadPower(UUID uUID) {
         this.lock.readLock().lock();
         try {
-            String prefix = PlayerStateStore.playerPrefix(playerId);
-            int projectileCount = this.getInt(prefix + "projectiles", 0);
-            float fireRate = this.getFloat(prefix + "fireRate", 1.0f);
-            float pickup = this.getFloat(prefix + "pickupRange", 0.0f);
-            int bounceBonus = this.getInt(prefix + "bounceBonus", 0);
-            int weaponDamageRank = this.getInt(prefix + "weaponDamageRank", 0);
-            int healthRank = this.getInt(prefix + "healthRank", 0);
-            int speedRank = this.getInt(prefix + "speedRank", 0);
-            int luckyRank = this.getInt(prefix + "luckyRank", 0);
-            boolean projectileRainUsed = this.getInt(prefix + "projectileRainUsed", 0) > 0;
-            return new PlayerPowerData(projectileCount, fireRate, pickup, bounceBonus, weaponDamageRank, healthRank, speedRank, luckyRank, projectileRainUsed);
+            String string = PlayerStateStore.playerPrefix(uUID);
+            int n = this.getInt(string + "projectiles", 0);
+            float f = this.getFloat(string + "fireRate", 1.0f);
+            float f2 = this.getFloat(string + "pickupRange", 0.0f);
+            int n2 = this.getInt(string + "bounceBonus", 0);
+            int n3 = this.getInt(string + "weaponDamageRank", 0);
+            int n4 = this.getInt(string + "healthRank", 0);
+            int n5 = this.getInt(string + "speedRank", 0);
+            int n6 = this.getInt(string + "luckyRank", 0);
+            int n7 = this.getInt(string + "skipRank", 0);
+            boolean bl = this.getInt(string + "projectileRainUsed", 0) > 0;
+            PlayerPowerData playerPowerData = new PlayerPowerData(n, f, f2, n2, n3, n4, n5, n6, n7, bl);
+            return playerPowerData;
         }
         finally {
             this.lock.readLock().unlock();
         }
     }
 
-    public void savePower(UUID playerId, int projectileCount, float fireRate, float pickupRange, int bounceBonus, int weaponDamageRank, int healthRank, int speedRank, int luckyRank, boolean projectileRainUsed) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public void savePower(UUID uUID, int n, float f, float f2, int n2, int n3, int n4, int n5, int n6, int n7, boolean bl) {
         this.lock.writeLock().lock();
         try {
-            String prefix = PlayerStateStore.playerPrefix(playerId);
-            this.props.setProperty(prefix + "projectiles", Integer.toString(projectileCount));
-            this.props.setProperty(prefix + "fireRate", Float.toString(fireRate));
-            this.props.setProperty(prefix + "pickupRange", Float.toString(pickupRange));
-            this.props.setProperty(prefix + "bounceBonus", Integer.toString(bounceBonus));
-            this.props.setProperty(prefix + "weaponDamageRank", Integer.toString(weaponDamageRank));
-            this.props.setProperty(prefix + "healthRank", Integer.toString(healthRank));
-            this.props.setProperty(prefix + "speedRank", Integer.toString(speedRank));
-            this.props.setProperty(prefix + "luckyRank", Integer.toString(luckyRank));
-            this.props.setProperty(prefix + "projectileRainUsed", projectileRainUsed ? "1" : "0");
+            String string = PlayerStateStore.playerPrefix(uUID);
+            this.props.setProperty(string + "projectiles", Integer.toString(n));
+            this.props.setProperty(string + "fireRate", Float.toString(f));
+            this.props.setProperty(string + "pickupRange", Float.toString(f2));
+            this.props.setProperty(string + "bounceBonus", Integer.toString(n2));
+            this.props.setProperty(string + "weaponDamageRank", Integer.toString(n3));
+            this.props.setProperty(string + "healthRank", Integer.toString(n4));
+            this.props.setProperty(string + "speedRank", Integer.toString(n5));
+            this.props.setProperty(string + "luckyRank", Integer.toString(n6));
+            this.props.setProperty(string + "skipRank", Integer.toString(n7));
+            this.props.setProperty(string + "projectileRainUsed", bl ? "1" : "0");
             this.saveUnsafe();
         }
         finally {
@@ -130,20 +154,21 @@ public final class PlayerStateStore {
         }
     }
 
-    public int loadWaveCount(UUID playerId) {
+    public int loadWaveCount(UUID uUID) {
         this.lock.readLock().lock();
         try {
-            return this.getInt(PlayerStateStore.waveCountKey(playerId), 0);
+            int n = this.getInt(PlayerStateStore.waveCountKey(uUID), 0);
+            return n;
         }
         finally {
             this.lock.readLock().unlock();
         }
     }
 
-    public void saveWaveCount(UUID playerId, int waveCount) {
+    public void saveWaveCount(UUID uUID, int n) {
         this.lock.writeLock().lock();
         try {
-            this.props.setProperty(PlayerStateStore.waveCountKey(playerId), Integer.toString(waveCount));
+            this.props.setProperty(PlayerStateStore.waveCountKey(uUID), Integer.toString(n));
             this.saveUnsafe();
         }
         finally {
@@ -151,20 +176,27 @@ public final class PlayerStateStore {
         }
     }
 
-    public long loadNextSpawnAt(UUID playerId) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public long loadNextSpawnAt(UUID uUID) {
         this.lock.readLock().lock();
         try {
-            return this.getLong(PlayerStateStore.waveNextSpawnKey(playerId), 0L);
+            long l = this.getLong(PlayerStateStore.waveNextSpawnKey(uUID), 0L);
+            return l;
         }
         finally {
             this.lock.readLock().unlock();
         }
     }
 
-    public void saveNextSpawnAt(UUID playerId, long nextSpawnAtMillis) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public void saveNextSpawnAt(UUID uUID, long l) {
         this.lock.writeLock().lock();
         try {
-            this.props.setProperty(PlayerStateStore.waveNextSpawnKey(playerId), Long.toString(nextSpawnAtMillis));
+            this.props.setProperty(PlayerStateStore.waveNextSpawnKey(uUID), Long.toString(l));
             this.saveUnsafe();
         }
         finally {
@@ -172,34 +204,36 @@ public final class PlayerStateStore {
         }
     }
 
-    public UUID loadBossId(UUID playerId) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public UUID loadBossId(UUID uUID) {
         this.lock.readLock().lock();
         try {
-            String value = this.props.getProperty(PlayerStateStore.bossIdKey(playerId));
-            if (value == null || value.isBlank()) {
-                return null;
+            String string = this.props.getProperty(PlayerStateStore.bossIdKey(uUID));
+            if (string == null || string.isBlank()) {
+                UUID uUID2 = null;
+                return uUID2;
             }
-            try {
-                return UUID.fromString(value.trim());
-            }
-            catch (IllegalArgumentException exception) {
-                LOGGER.log(Level.FINE, "Invalid boss UUID for player " + playerId + ": " + value, exception);
-                return null;
-            }
+            UUID uUID3 = UUID.fromString(string.trim());
+            return uUID3;
         }
         finally {
             this.lock.readLock().unlock();
         }
     }
 
-    public void saveBossId(UUID playerId, UUID bossId) {
+    /*
+     * WARNING - Removed try catching itself - possible behaviour change.
+     */
+    public void saveBossId(UUID uUID, UUID uUID2) {
         this.lock.writeLock().lock();
         try {
-            String key = PlayerStateStore.bossIdKey(playerId);
-            if (bossId == null) {
-                this.props.remove(key);
+            String string = PlayerStateStore.bossIdKey(uUID);
+            if (uUID2 == null) {
+                this.props.remove(string);
             } else {
-                this.props.setProperty(key, bossId.toString());
+                this.props.setProperty(string, uUID2.toString());
             }
             this.saveUnsafe();
         }
@@ -210,74 +244,71 @@ public final class PlayerStateStore {
 
     private void saveUnsafe() {
         try {
-            Path parent = this.filePath.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
+            Path path = this.filePath.getParent();
+            if (path != null) {
+                Files.createDirectories(path, new FileAttribute[0]);
             }
-            try (OutputStream out = Files.newOutputStream(this.filePath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);){
-                this.props.store(out, "Hytale Survivors player state");
+            try (OutputStream outputStream = Files.newOutputStream(this.filePath, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);){
+                this.props.store(outputStream, "Hytale Survivors player state");
             }
         }
-        catch (IOException exception) {
-            LOGGER.log(Level.WARNING, "Failed to save player state file: " + this.filePath, exception);
+        catch (IOException iOException) {
+            LOGGER.log(Level.WARNING, "Failed to save player state file: " + String.valueOf(this.filePath), iOException);
         }
     }
 
-    private static String playerPrefix(UUID playerId) {
-        return "player." + playerId + ".";
+    private static String playerPrefix(UUID uUID) {
+        return "player." + String.valueOf(uUID) + ".";
     }
 
-    private static String waveCountKey(UUID playerId) {
-        return "wave." + playerId;
+    private static String waveCountKey(UUID uUID) {
+        return "wave." + String.valueOf(uUID);
     }
 
-    private static String waveNextSpawnKey(UUID playerId) {
-        return "wave.next." + playerId;
+    private static String waveNextSpawnKey(UUID uUID) {
+        return "wave.next." + String.valueOf(uUID);
     }
 
-    private static String bossIdKey(UUID playerId) {
-        return "boss." + playerId;
+    private static String bossIdKey(UUID uUID) {
+        return "boss." + String.valueOf(uUID);
     }
 
-    private int getInt(String key, int defaultValue) {
-        String value = this.props.getProperty(key);
-        if (value == null) {
-            return defaultValue;
+    private int getInt(String string, int n) {
+        String string2 = this.props.getProperty(string);
+        if (string2 == null) {
+            return n;
         }
         try {
-            return Integer.parseInt(value.trim());
+            return Integer.parseInt(string2.trim());
         }
-        catch (NumberFormatException exception) {
-            LOGGER.log(Level.FINE, "Invalid int for key '" + key + "': " + value, exception);
-            return defaultValue;
-        }
-    }
-
-    private float getFloat(String key, float defaultValue) {
-        String value = this.props.getProperty(key);
-        if (value == null) {
-            return defaultValue;
-        }
-        try {
-            return Float.parseFloat(value.trim());
-        }
-        catch (NumberFormatException exception) {
-            LOGGER.log(Level.FINE, "Invalid float for key '" + key + "': " + value, exception);
-            return defaultValue;
+        catch (NumberFormatException numberFormatException) {
+            return n;
         }
     }
 
-    private long getLong(String key, long defaultValue) {
-        String value = this.props.getProperty(key);
-        if (value == null) {
-            return defaultValue;
+    private float getFloat(String string, float f) {
+        String string2 = this.props.getProperty(string);
+        if (string2 == null) {
+            return f;
         }
         try {
-            return Long.parseLong(value.trim());
+            return Float.parseFloat(string2.trim());
         }
-        catch (NumberFormatException exception) {
-            LOGGER.log(Level.FINE, "Invalid long for key '" + key + "': " + value, exception);
-            return defaultValue;
+        catch (NumberFormatException numberFormatException) {
+            return f;
+        }
+    }
+
+    private long getLong(String string, long l) {
+        String string2 = this.props.getProperty(string);
+        if (string2 == null) {
+            return l;
+        }
+        try {
+            return Long.parseLong(string2.trim());
+        }
+        catch (NumberFormatException numberFormatException) {
+            return l;
         }
     }
 
@@ -286,10 +317,10 @@ public final class PlayerStateStore {
         public final int essenceProgress;
         public final int lastStoreLevel;
 
-        public PlayerLevelData(int level, int essenceProgress, int lastStoreLevel) {
-            this.level = level;
-            this.essenceProgress = essenceProgress;
-            this.lastStoreLevel = lastStoreLevel;
+        public PlayerLevelData(int n, int n2, int n3) {
+            this.level = n;
+            this.essenceProgress = n2;
+            this.lastStoreLevel = n3;
         }
     }
 
@@ -302,18 +333,20 @@ public final class PlayerStateStore {
         public final int healthRank;
         public final int speedRank;
         public final int luckyRank;
+        public final int skipRank;
         public final boolean projectileRainUsed;
 
-        public PlayerPowerData(int projectileCount, float fireRateMultiplier, float pickupRangeBonus, int bounceBonus, int weaponDamageRank, int healthRank, int speedRank, int luckyRank, boolean projectileRainUsed) {
-            this.projectileCount = projectileCount;
-            this.fireRateMultiplier = fireRateMultiplier;
-            this.pickupRangeBonus = pickupRangeBonus;
-            this.bounceBonus = bounceBonus;
-            this.weaponDamageRank = weaponDamageRank;
-            this.healthRank = healthRank;
-            this.speedRank = speedRank;
-            this.luckyRank = luckyRank;
-            this.projectileRainUsed = projectileRainUsed;
+        public PlayerPowerData(int n, float f, float f2, int n2, int n3, int n4, int n5, int n6, int n7, boolean bl) {
+            this.projectileCount = n;
+            this.fireRateMultiplier = f;
+            this.pickupRangeBonus = f2;
+            this.bounceBonus = n2;
+            this.weaponDamageRank = n3;
+            this.healthRank = n4;
+            this.speedRank = n5;
+            this.luckyRank = n6;
+            this.skipRank = n7;
+            this.projectileRainUsed = bl;
         }
     }
 }

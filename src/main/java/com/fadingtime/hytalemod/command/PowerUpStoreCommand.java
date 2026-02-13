@@ -1,5 +1,21 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.protocol.GameMode
+ *  com.hypixel.hytale.server.core.command.system.CommandContext
+ *  com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand
+ *  com.hypixel.hytale.server.core.entity.entities.Player
+ *  com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ */
 package com.fadingtime.hytalemod.command;
 
+import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.ui.PowerUpStorePage;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
@@ -21,17 +37,24 @@ extends AbstractPlayerCommand {
         this.setPermissionGroup(GameMode.Creative);
     }
 
-    protected void execute(CommandContext context, Store<EntityStore> store, Ref<EntityStore> playerRef, PlayerRef playerRefComponent, World world) {
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null || playerRefComponent == null) {
+    protected void execute(CommandContext commandContext, Store<EntityStore> store, Ref<EntityStore> ref, PlayerRef playerRef, World world) {
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null || playerRef == null) {
             return;
         }
-        CustomUIPage currentPage = playerComponent.getPageManager().getCustomPage();
-        if (currentPage instanceof PowerUpStorePage) {
-            ((PowerUpStorePage)currentPage).requestClose();
+        if (HytaleMod.getInstance() == null || HytaleMod.getInstance().getLifeEssenceLevelSystem() == null) {
             return;
         }
-        playerComponent.getPageManager().openCustomPage(playerRef, store, (CustomUIPage)new PowerUpStorePage(playerRefComponent, 5));
+        CustomUIPage customUIPage = player.getPageManager().getCustomPage();
+        if (customUIPage instanceof PowerUpStorePage) {
+            HytaleMod.getInstance().getLifeEssenceLevelSystem().closeStoreForPlayer(ref, store);
+            CustomUIPage customUIPage2 = player.getPageManager().getCustomPage();
+            if (customUIPage2 instanceof PowerUpStorePage) {
+                ((PowerUpStorePage)customUIPage2).requestClose();
+            }
+            return;
+        }
+        HytaleMod.getInstance().getLifeEssenceLevelSystem().openStoreForPlayer(ref, store, player, playerRef, 5);
     }
 }
 

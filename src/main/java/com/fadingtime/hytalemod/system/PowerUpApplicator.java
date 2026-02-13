@@ -1,9 +1,26 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.protocol.MovementSettings
+ *  com.hypixel.hytale.server.core.entity.entities.player.movement.MovementManager
+ *  com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap
+ *  com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes
+ *  com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier
+ *  com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier$ModifierTarget
+ *  com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier
+ *  com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier$CalculationType
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
 import com.fadingtime.hytalemod.config.LifeEssenceConfig;
 import com.fadingtime.hytalemod.persistence.PlayerStateStore;
-import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.MovementSettings;
@@ -19,7 +36,7 @@ import javax.annotation.Nonnull;
 public final class PowerUpApplicator {
     private static final String PLAYER_HEALTH_BONUS_MODIFIER_ID = "PlayerHealthBonus";
     private static final String PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID = "PlayerSpeedStaminaBonus";
-
+    private static final String SKIP_CHOICE = "skip_store";
     private final int maxExtraProjectiles;
     private final int maxBounceUpgrades;
     private final int maxWeaponDamageUpgrades;
@@ -42,309 +59,275 @@ public final class PowerUpApplicator {
     private final int maxProjectileRainUpgrades;
     private final int projectileRainBurstsOnPick;
 
-    public PowerUpApplicator(
-        int maxExtraProjectiles,
-        int maxBounceUpgrades,
-        int maxWeaponDamageUpgrades,
-        int maxHealthUpgrades,
-        int maxSpeedUpgrades,
-        int maxLuckyUpgrades,
-        int maxFireRateUpgrades,
-        float fireRateMultiplierPerUpgrade,
-        int maxPickupRangeUpgrades,
-        float pickupRangePerUpgrade,
-        float maxPickupRangeBonus,
-        float weaponDamageBonusPerUpgrade,
-        float healthBonusPerUpgrade,
-        float speedBonusPerUpgrade,
-        float maxSpeedMultiplier,
-        float playerBaseSpeed,
-        float staminaBonusPerSpeedUpgrade,
-        int luckyEssenceBonusPerRank,
-        int maxProjectileRainUpgrades,
-        int projectileRainBurstsOnPick
-    ) {
-        this.maxExtraProjectiles = Math.max(0, maxExtraProjectiles);
-        this.maxBounceUpgrades = Math.max(0, maxBounceUpgrades);
-        this.maxWeaponDamageUpgrades = Math.max(0, maxWeaponDamageUpgrades);
-        this.maxHealthUpgrades = Math.max(0, maxHealthUpgrades);
-        this.maxSpeedUpgrades = Math.max(0, maxSpeedUpgrades);
-        this.maxLuckyUpgrades = Math.max(0, maxLuckyUpgrades);
-        this.maxFireRateUpgrades = Math.max(0, maxFireRateUpgrades);
-        this.fireRateMultiplierPerUpgrade = fireRateMultiplierPerUpgrade <= 0.0f ? 1.15f : fireRateMultiplierPerUpgrade;
+    public PowerUpApplicator(int n, int n2, int n3, int n4, int n5, int n6, int n7, float f, int n8, float f2, float f3, float f4, float f5, float f6, float f7, float f8, float f9, int n9, int n10, int n11) {
+        this.maxExtraProjectiles = Math.max(0, n);
+        this.maxBounceUpgrades = Math.max(0, n2);
+        this.maxWeaponDamageUpgrades = Math.max(0, n3);
+        this.maxHealthUpgrades = Math.max(0, n4);
+        this.maxSpeedUpgrades = Math.max(0, n5);
+        this.maxLuckyUpgrades = Math.max(0, n6);
+        this.maxFireRateUpgrades = Math.max(0, n7);
+        this.fireRateMultiplierPerUpgrade = f <= 0.0f ? 1.15f : f;
         this.maxFireRateMultiplier = (float)Math.pow(this.fireRateMultiplierPerUpgrade, this.maxFireRateUpgrades);
-        this.maxPickupRangeUpgrades = Math.max(0, maxPickupRangeUpgrades);
-        this.pickupRangePerUpgrade = pickupRangePerUpgrade <= 0.0f ? 10.0f : pickupRangePerUpgrade;
-        this.maxPickupRangeBonus = Math.max(0.0f, maxPickupRangeBonus);
-        this.weaponDamageBonusPerUpgrade = Math.max(0.0f, weaponDamageBonusPerUpgrade);
-        this.healthBonusPerUpgrade = Math.max(0.0f, healthBonusPerUpgrade);
-        this.speedBonusPerUpgrade = Math.max(0.0f, speedBonusPerUpgrade);
-        this.maxSpeedMultiplier = Math.max(1.0f, maxSpeedMultiplier);
-        this.playerBaseSpeed = Math.max(0.01f, playerBaseSpeed);
-        this.staminaBonusPerSpeedUpgrade = Math.max(0.0f, staminaBonusPerSpeedUpgrade);
-        this.luckyEssenceBonusPerRank = Math.max(0, luckyEssenceBonusPerRank);
-        this.maxProjectileRainUpgrades = Math.max(0, maxProjectileRainUpgrades);
-        this.projectileRainBurstsOnPick = Math.max(1, projectileRainBurstsOnPick);
+        this.maxPickupRangeUpgrades = Math.max(0, n8);
+        this.pickupRangePerUpgrade = f2 <= 0.0f ? 10.0f : f2;
+        this.maxPickupRangeBonus = Math.max(0.0f, f3);
+        this.weaponDamageBonusPerUpgrade = Math.max(0.0f, f4);
+        this.healthBonusPerUpgrade = Math.max(0.0f, f5);
+        this.speedBonusPerUpgrade = Math.max(0.0f, f6);
+        this.maxSpeedMultiplier = Math.max(1.0f, f7);
+        this.playerBaseSpeed = Math.max(0.01f, f8);
+        this.staminaBonusPerSpeedUpgrade = Math.max(0.0f, f9);
+        this.luckyEssenceBonusPerRank = Math.max(0, n9);
+        this.maxProjectileRainUpgrades = Math.max(0, n10);
+        this.projectileRainBurstsOnPick = Math.max(1, n11);
     }
 
-    public static PowerUpApplicator fromConfig(@Nonnull LifeEssenceConfig config) {
-        return new PowerUpApplicator(
-            config.maxExtraProjectiles,
-            config.maxBounceUpgrades,
-            config.maxWeaponDamageUpgrades,
-            config.maxHealthUpgrades,
-            config.maxSpeedUpgrades,
-            config.maxLuckyUpgrades,
-            config.maxFireRateUpgrades,
-            config.fireRateMultiplierPerUpgrade,
-            config.maxPickupRangeUpgrades,
-            config.pickupRangePerUpgrade,
-            config.maxPickupRangeBonus,
-            config.weaponDamageBonusPerUpgrade,
-            config.healthBonusPerUpgrade,
-            config.speedBonusPerUpgrade,
-            config.maxSpeedMultiplier,
-            config.playerBaseSpeed,
-            config.staminaBonusPerSpeedUpgrade,
-            config.luckyEssenceBonusPerRank,
-            config.maxProjectileRainUpgrades,
-            config.projectileRainBurstsOnPick
-        );
+    public static PowerUpApplicator fromConfig(@Nonnull LifeEssenceConfig lifeEssenceConfig) {
+        return new PowerUpApplicator(lifeEssenceConfig.maxExtraProjectiles, lifeEssenceConfig.maxBounceUpgrades, lifeEssenceConfig.maxWeaponDamageUpgrades, lifeEssenceConfig.maxHealthUpgrades, lifeEssenceConfig.maxSpeedUpgrades, lifeEssenceConfig.maxLuckyUpgrades, lifeEssenceConfig.maxFireRateUpgrades, lifeEssenceConfig.fireRateMultiplierPerUpgrade, lifeEssenceConfig.maxPickupRangeUpgrades, lifeEssenceConfig.pickupRangePerUpgrade, lifeEssenceConfig.maxPickupRangeBonus, lifeEssenceConfig.weaponDamageBonusPerUpgrade, lifeEssenceConfig.healthBonusPerUpgrade, lifeEssenceConfig.speedBonusPerUpgrade, lifeEssenceConfig.maxSpeedMultiplier, lifeEssenceConfig.playerBaseSpeed, lifeEssenceConfig.staminaBonusPerSpeedUpgrade, lifeEssenceConfig.luckyEssenceBonusPerRank, lifeEssenceConfig.maxProjectileRainUpgrades, lifeEssenceConfig.projectileRainBurstsOnPick);
     }
 
     public PowerState newState() {
         return new PowerState();
     }
 
-    public PowerState fromPersisted(@Nonnull PlayerStateStore.PlayerPowerData data) {
-        PowerState state = new PowerState();
-        state.projectileCount = clampProjectileCount(data.projectileCount);
-        state.fireRateMultiplier = clampFireRate(data.fireRateMultiplier);
-        state.pickupRangeBonus = clampPickupRange(data.pickupRangeBonus);
-        state.bounceBonus = clampBounceBonus(data.bounceBonus);
-        state.weaponDamageRank = clampWeaponDamageRank(data.weaponDamageRank);
-        state.healthRank = clampHealthRank(data.healthRank);
-        state.speedRank = clampSpeedRank(data.speedRank);
-        state.luckyRank = clampLuckyRank(data.luckyRank);
-        state.projectileRainUsed = data.projectileRainUsed;
-        return state;
+    public PowerState fromPersisted(@Nonnull PlayerStateStore.PlayerPowerData playerPowerData) {
+        PowerState powerState = new PowerState();
+        powerState.projectileCount = this.clampProjectileCount(playerPowerData.projectileCount);
+        powerState.fireRateMultiplier = this.clampFireRate(playerPowerData.fireRateMultiplier);
+        powerState.pickupRangeBonus = this.clampPickupRange(playerPowerData.pickupRangeBonus);
+        powerState.bounceBonus = this.clampBounceBonus(playerPowerData.bounceBonus);
+        powerState.weaponDamageRank = this.clampWeaponDamageRank(playerPowerData.weaponDamageRank);
+        powerState.healthRank = this.clampHealthRank(playerPowerData.healthRank);
+        powerState.speedRank = this.clampSpeedRank(playerPowerData.speedRank);
+        powerState.luckyRank = this.clampLuckyRank(playerPowerData.luckyRank);
+        powerState.skipRank = Math.max(0, playerPowerData.skipRank);
+        powerState.projectileRainUsed = playerPowerData.projectileRainUsed;
+        return powerState;
     }
 
-    public boolean applyChoice(@Nonnull PowerState state, @Nonnull String choice) {
-        if ("extra_projectile".equals(choice)) {
-            state.projectileCount = clampProjectileCount(state.projectileCount + 1);
+    public boolean applyChoice(@Nonnull PowerState powerState, @Nonnull String string) {
+        if ("extra_projectile".equals(string)) {
+            powerState.projectileCount = this.clampProjectileCount(powerState.projectileCount + 1);
             return false;
         }
-        if ("fire_rate".equals(choice)) {
-            state.fireRateMultiplier = clampFireRate(state.fireRateMultiplier * this.fireRateMultiplierPerUpgrade);
+        if ("fire_rate".equals(string)) {
+            powerState.fireRateMultiplier = this.clampFireRate(powerState.fireRateMultiplier * this.fireRateMultiplierPerUpgrade);
             return false;
         }
-        if ("pickup_range".equals(choice)) {
-            state.pickupRangeBonus = clampPickupRange(state.pickupRangeBonus + this.pickupRangePerUpgrade);
+        if ("pickup_range".equals(string)) {
+            powerState.pickupRangeBonus = this.clampPickupRange(powerState.pickupRangeBonus + this.pickupRangePerUpgrade);
             return false;
         }
-        if ("bounce".equals(choice)) {
-            state.bounceBonus = clampBounceBonus(state.bounceBonus + 1);
+        if ("bounce".equals(string)) {
+            powerState.bounceBonus = this.clampBounceBonus(powerState.bounceBonus + 1);
             return false;
         }
-        if ("weapon_damage".equals(choice)) {
-            state.weaponDamageRank = clampWeaponDamageRank(state.weaponDamageRank + 1);
+        if ("weapon_damage".equals(string)) {
+            powerState.weaponDamageRank = this.clampWeaponDamageRank(powerState.weaponDamageRank + 1);
             return false;
         }
-        if ("max_health".equals(choice)) {
-            state.healthRank = clampHealthRank(state.healthRank + 1);
+        if ("max_health".equals(string)) {
+            powerState.healthRank = this.clampHealthRank(powerState.healthRank + 1);
             return false;
         }
-        if ("move_speed".equals(choice)) {
-            state.speedRank = clampSpeedRank(state.speedRank + 1);
+        if ("move_speed".equals(string)) {
+            powerState.speedRank = this.clampSpeedRank(powerState.speedRank + 1);
             return false;
         }
-        if ("lucky".equals(choice)) {
-            state.luckyRank = clampLuckyRank(state.luckyRank + 1);
+        if ("lucky".equals(string)) {
+            powerState.luckyRank = this.clampLuckyRank(powerState.luckyRank + 1);
             return false;
         }
-        return "projectile_rain".equals(choice);
+        if (SKIP_CHOICE.equals(string)) {
+            if (powerState.skipRank < Integer.MAX_VALUE) {
+                ++powerState.skipRank;
+            }
+            return false;
+        }
+        return "projectile_rain".equals(string);
     }
 
-    public void applyToShooter(@Nonnull PowerState state, @Nonnull VampireShooterComponent shooter) {
-        shooter.setProjectileCount(clampProjectileCount(state.projectileCount));
-        shooter.setFireRateMultiplier(clampFireRate(state.fireRateMultiplier));
-        shooter.setPickupRangeBonus(clampPickupRange(state.pickupRangeBonus));
-        shooter.setBounceBonus(clampBounceBonus(state.bounceBonus));
+    public void applyToShooter(@Nonnull PowerState powerState, @Nonnull VampireShooterComponent vampireShooterComponent) {
+        vampireShooterComponent.setProjectileCount(this.clampProjectileCount(powerState.projectileCount));
+        vampireShooterComponent.setFireRateMultiplier(this.clampFireRate(powerState.fireRateMultiplier));
+        vampireShooterComponent.setPickupRangeBonus(this.clampPickupRange(powerState.pickupRangeBonus));
+        vampireShooterComponent.setBounceBonus(this.clampBounceBonus(powerState.bounceBonus));
     }
 
-    public void resetShooter(@Nonnull VampireShooterComponent shooter) {
-        shooter.setProjectileCount(0);
-        shooter.setFireRateMultiplier(1.0f);
-        shooter.setPickupRangeBonus(0.0f);
-        shooter.setBounceBonus(0);
+    public void resetShooter(@Nonnull VampireShooterComponent vampireShooterComponent) {
+        vampireShooterComponent.setProjectileCount(0);
+        vampireShooterComponent.setFireRateMultiplier(1.0f);
+        vampireShooterComponent.setPickupRangeBonus(0.0f);
+        vampireShooterComponent.setBounceBonus(0);
     }
 
-    public void applyPlayerBonuses(@Nonnull PowerState state, @Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRefComponent) {
-        applyPlayerHealthBonus(playerRef, store, state.healthRank);
-        applyPlayerSpeedBonus(playerRef, store, playerRefComponent, state.speedRank);
+    public void applyPlayerBonuses(@Nonnull PowerState powerState, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRef) {
+        this.applyPlayerHealthBonus(ref, store, powerState.healthRank);
+        this.applyPlayerSpeedBonus(ref, store, playerRef, powerState.speedRank);
     }
 
-    private void applyPlayerHealthBonus(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, int rank) {
-        EntityStatMap statMap = (EntityStatMap)store.getComponent(playerRef, EntityStatMap.getComponentType());
-        if (statMap == null) {
+    private void applyPlayerHealthBonus(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, int n) {
+        EntityStatMap entityStatMap = (EntityStatMap)store.getComponent(ref, EntityStatMap.getComponentType());
+        if (entityStatMap == null) {
             return;
         }
-        float bonus = (float)clampHealthRank(rank) * this.healthBonusPerUpgrade;
-        if (bonus <= 0.0f) {
-            statMap.removeModifier(DefaultEntityStatTypes.getHealth(), PLAYER_HEALTH_BONUS_MODIFIER_ID);
+        float f = (float)this.clampHealthRank(n) * this.healthBonusPerUpgrade;
+        if (f <= 0.0f) {
+            entityStatMap.removeModifier(DefaultEntityStatTypes.getHealth(), PLAYER_HEALTH_BONUS_MODIFIER_ID);
             return;
         }
-        statMap.putModifier(DefaultEntityStatTypes.getHealth(), PLAYER_HEALTH_BONUS_MODIFIER_ID, (Modifier)new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.ADDITIVE, bonus));
-        statMap.maximizeStatValue(DefaultEntityStatTypes.getHealth());
+        entityStatMap.putModifier(DefaultEntityStatTypes.getHealth(), PLAYER_HEALTH_BONUS_MODIFIER_ID, (Modifier)new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.ADDITIVE, f));
+        entityStatMap.maximizeStatValue(DefaultEntityStatTypes.getHealth());
     }
 
-    private void applyPlayerSpeedBonus(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRefComponent, int rank) {
-        MovementManager movementManager = (MovementManager)store.getComponent(playerRef, MovementManager.getComponentType());
-        float speedMultiplier = getSpeedMultiplierForRank(rank);
+    private void applyPlayerSpeedBonus(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRef, int n) {
+        MovementManager movementManager = (MovementManager)store.getComponent(ref, MovementManager.getComponentType());
+        float f = this.getSpeedMultiplierForRank(n);
         if (movementManager != null) {
-            movementManager.resetDefaultsAndUpdate(playerRef, (ComponentAccessor<EntityStore>)store);
-            MovementSettings base = movementManager.getDefaultSettings();
-            if (base != null) {
-                base.baseSpeed = this.playerBaseSpeed;
-                applySpeedMultiplier(base, speedMultiplier);
+            movementManager.resetDefaultsAndUpdate(ref, store);
+            MovementSettings movementSettings = movementManager.getDefaultSettings();
+            if (movementSettings != null) {
+                movementSettings.baseSpeed = this.playerBaseSpeed;
+                PowerUpApplicator.applySpeedMultiplier(movementSettings, f);
                 movementManager.applyDefaultSettings();
-                movementManager.update(playerRefComponent.getPacketHandler());
+                movementManager.update(playerRef.getPacketHandler());
             }
         }
-        applyPlayerSpeedStaminaBonus(playerRef, store, rank);
+        this.applyPlayerSpeedStaminaBonus(ref, store, n);
     }
 
-    private void applyPlayerSpeedStaminaBonus(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, int rank) {
-        EntityStatMap statMap = (EntityStatMap)store.getComponent(playerRef, EntityStatMap.getComponentType());
-        if (statMap == null) {
+    private void applyPlayerSpeedStaminaBonus(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, int n) {
+        EntityStatMap entityStatMap = (EntityStatMap)store.getComponent(ref, EntityStatMap.getComponentType());
+        if (entityStatMap == null) {
             return;
         }
-        float bonus = (float)clampSpeedRank(rank) * this.staminaBonusPerSpeedUpgrade;
-        if (bonus <= 0.0f) {
-            statMap.removeModifier(DefaultEntityStatTypes.getStamina(), PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID);
+        float f = (float)this.clampSpeedRank(n) * this.staminaBonusPerSpeedUpgrade;
+        if (f <= 0.0f) {
+            entityStatMap.removeModifier(DefaultEntityStatTypes.getStamina(), PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID);
             return;
         }
-        statMap.putModifier(DefaultEntityStatTypes.getStamina(), PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID, (Modifier)new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.ADDITIVE, bonus));
-        statMap.maximizeStatValue(DefaultEntityStatTypes.getStamina());
+        entityStatMap.putModifier(DefaultEntityStatTypes.getStamina(), PLAYER_SPEED_STAMINA_BONUS_MODIFIER_ID, (Modifier)new StaticModifier(Modifier.ModifierTarget.MAX, StaticModifier.CalculationType.ADDITIVE, f));
+        entityStatMap.maximizeStatValue(DefaultEntityStatTypes.getStamina());
     }
 
-    private static void applySpeedMultiplier(@Nonnull MovementSettings settings, float speedMultiplier) {
-        settings.baseSpeed = Math.max(0.01f, settings.baseSpeed * speedMultiplier);
-        settings.climbSpeed = Math.max(0.01f, settings.climbSpeed * speedMultiplier);
-        settings.climbSpeedLateral = Math.max(0.01f, settings.climbSpeedLateral * speedMultiplier);
-        settings.climbUpSprintSpeed = Math.max(0.01f, settings.climbUpSprintSpeed * speedMultiplier);
-        settings.climbDownSprintSpeed = Math.max(0.01f, settings.climbDownSprintSpeed * speedMultiplier);
-        settings.horizontalFlySpeed = Math.max(0.01f, settings.horizontalFlySpeed * speedMultiplier);
-        settings.verticalFlySpeed = Math.max(0.01f, settings.verticalFlySpeed * speedMultiplier);
+    private static void applySpeedMultiplier(@Nonnull MovementSettings movementSettings, float f) {
+        movementSettings.baseSpeed = Math.max(0.01f, movementSettings.baseSpeed * f);
+        movementSettings.climbSpeed = Math.max(0.01f, movementSettings.climbSpeed * f);
+        movementSettings.climbSpeedLateral = Math.max(0.01f, movementSettings.climbSpeedLateral * f);
+        movementSettings.climbUpSprintSpeed = Math.max(0.01f, movementSettings.climbUpSprintSpeed * f);
+        movementSettings.climbDownSprintSpeed = Math.max(0.01f, movementSettings.climbDownSprintSpeed * f);
+        movementSettings.horizontalFlySpeed = Math.max(0.01f, movementSettings.horizontalFlySpeed * f);
+        movementSettings.verticalFlySpeed = Math.max(0.01f, movementSettings.verticalFlySpeed * f);
     }
 
-    public int getChoiceRank(@Nonnull String choice, @Nonnull PowerState state) {
-        if ("extra_projectile".equals(choice)) {
-            return clampProjectileCount(state.projectileCount);
+    public int getChoiceRank(@Nonnull String string, @Nonnull PowerState powerState) {
+        if ("extra_projectile".equals(string)) {
+            return this.clampProjectileCount(powerState.projectileCount);
         }
-        if ("fire_rate".equals(choice)) {
-            return computeFireRateRank(state.fireRateMultiplier);
+        if ("fire_rate".equals(string)) {
+            return this.computeFireRateRank(powerState.fireRateMultiplier);
         }
-        if ("pickup_range".equals(choice)) {
-            return computePickupRangeRank(state.pickupRangeBonus);
+        if ("pickup_range".equals(string)) {
+            return this.computePickupRangeRank(powerState.pickupRangeBonus);
         }
-        if ("bounce".equals(choice)) {
-            return clampBounceBonus(state.bounceBonus);
+        if ("bounce".equals(string)) {
+            return this.clampBounceBonus(powerState.bounceBonus);
         }
-        if ("weapon_damage".equals(choice)) {
-            return clampWeaponDamageRank(state.weaponDamageRank);
+        if ("weapon_damage".equals(string)) {
+            return this.clampWeaponDamageRank(powerState.weaponDamageRank);
         }
-        if ("max_health".equals(choice)) {
-            return clampHealthRank(state.healthRank);
+        if ("max_health".equals(string)) {
+            return this.clampHealthRank(powerState.healthRank);
         }
-        if ("move_speed".equals(choice)) {
-            return clampSpeedRank(state.speedRank);
+        if ("move_speed".equals(string)) {
+            return this.clampSpeedRank(powerState.speedRank);
         }
-        if ("lucky".equals(choice)) {
-            return clampLuckyRank(state.luckyRank);
+        if ("lucky".equals(string)) {
+            return this.clampLuckyRank(powerState.luckyRank);
         }
-        if ("projectile_rain".equals(choice)) {
-            return state.projectileRainUsed ? 1 : 0;
+        if (SKIP_CHOICE.equals(string)) {
+            return Math.max(0, powerState.skipRank);
+        }
+        if ("projectile_rain".equals(string)) {
+            return powerState.projectileRainUsed ? 1 : 0;
         }
         return 0;
     }
 
-    public int clampProjectileCount(int count) {
-        return Math.max(0, Math.min(this.maxExtraProjectiles, count));
+    public int clampProjectileCount(int n) {
+        return Math.max(0, Math.min(this.maxExtraProjectiles, n));
     }
 
-    public int clampBounceBonus(int bonus) {
-        return Math.max(0, Math.min(this.maxBounceUpgrades, bonus));
+    public int clampBounceBonus(int n) {
+        return Math.max(0, Math.min(this.maxBounceUpgrades, n));
     }
 
-    public int clampWeaponDamageRank(int rank) {
-        return Math.max(0, Math.min(this.maxWeaponDamageUpgrades, rank));
+    public int clampWeaponDamageRank(int n) {
+        return Math.max(0, Math.min(this.maxWeaponDamageUpgrades, n));
     }
 
-    public int clampHealthRank(int rank) {
-        return Math.max(0, Math.min(this.maxHealthUpgrades, rank));
+    public int clampHealthRank(int n) {
+        return Math.max(0, Math.min(this.maxHealthUpgrades, n));
     }
 
-    public int clampSpeedRank(int rank) {
-        return Math.max(0, Math.min(this.maxSpeedUpgrades, rank));
+    public int clampSpeedRank(int n) {
+        return Math.max(0, Math.min(this.maxSpeedUpgrades, n));
     }
 
-    public int clampLuckyRank(int rank) {
-        return Math.max(0, Math.min(this.maxLuckyUpgrades, rank));
+    public int clampLuckyRank(int n) {
+        return Math.max(0, Math.min(this.maxLuckyUpgrades, n));
     }
 
-    public float clampFireRate(float multiplier) {
-        if (!Float.isFinite(multiplier) || multiplier <= 0.0f) {
+    public float clampFireRate(float f) {
+        if (!Float.isFinite(f) || f <= 0.0f) {
             return 1.0f;
         }
-        return Math.min(this.maxFireRateMultiplier, Math.max(0.1f, multiplier));
+        return Math.min(this.maxFireRateMultiplier, Math.max(0.1f, f));
     }
 
-    public float clampPickupRange(float bonus) {
-        if (!Float.isFinite(bonus) || bonus < 0.0f) {
+    public float clampPickupRange(float f) {
+        if (!Float.isFinite(f) || f < 0.0f) {
             return 0.0f;
         }
-        return Math.min(this.maxPickupRangeBonus, bonus);
+        return Math.min(this.maxPickupRangeBonus, f);
     }
 
-    public int computeFireRateRank(float multiplier) {
-        if (!Float.isFinite(multiplier) || multiplier <= 1.0f) {
+    public int computeFireRateRank(float f) {
+        if (!Float.isFinite(f) || f <= 1.0f) {
             return 0;
         }
-        float current = 1.0f;
-        int rank = 0;
+        float f2 = 1.0f;
+        int n = 0;
         for (int i = 1; i <= this.maxFireRateUpgrades; ++i) {
-            current *= this.fireRateMultiplierPerUpgrade;
-            if (multiplier >= current - 1.0E-4f) {
-                rank = i;
-            }
+            if (!(f >= (f2 *= this.fireRateMultiplierPerUpgrade) - 1.0E-4f)) continue;
+            n = i;
         }
-        return rank;
+        return n;
     }
 
-    public int computePickupRangeRank(float bonus) {
-        if (!Float.isFinite(bonus) || bonus <= 0.0f || this.pickupRangePerUpgrade <= 0.0f) {
+    public int computePickupRangeRank(float f) {
+        if (!Float.isFinite(f) || f <= 0.0f || this.pickupRangePerUpgrade <= 0.0f) {
             return 0;
         }
-        int rank = (int)Math.floor(bonus / this.pickupRangePerUpgrade + 1.0E-4f);
-        if (rank < 0) {
+        int n = (int)Math.floor(f / this.pickupRangePerUpgrade + 1.0E-4f);
+        if (n < 0) {
             return 0;
         }
-        return Math.min(this.maxPickupRangeUpgrades, rank);
+        return Math.min(this.maxPickupRangeUpgrades, n);
     }
 
-    public float getWeaponDamageBonusForRank(int rank) {
-        return (float)clampWeaponDamageRank(rank) * this.weaponDamageBonusPerUpgrade;
+    public float getWeaponDamageBonusForRank(int n) {
+        return (float)this.clampWeaponDamageRank(n) * this.weaponDamageBonusPerUpgrade;
     }
 
-    public float getSpeedMultiplierForRank(int rank) {
-        int clampedRank = clampSpeedRank(rank);
-        return Math.min(this.maxSpeedMultiplier, 1.0f + (float)clampedRank * this.speedBonusPerUpgrade);
+    public float getSpeedMultiplierForRank(int n) {
+        int n2 = this.clampSpeedRank(n);
+        return Math.min(this.maxSpeedMultiplier, 1.0f + (float)n2 * this.speedBonusPerUpgrade);
     }
 
-    public int getLuckyEssenceBonus(@Nonnull PowerState state) {
-        return clampLuckyRank(state.luckyRank) * this.luckyEssenceBonusPerRank;
+    public int getLuckyEssenceBonus(@Nonnull PowerState powerState) {
+        return this.clampLuckyRank(powerState.luckyRank) * this.luckyEssenceBonusPerRank;
     }
 
     public int getProjectileRainBurstsOnPick() {
@@ -396,6 +379,7 @@ public final class PowerUpApplicator {
         int healthRank;
         int speedRank;
         int luckyRank;
+        int skipRank;
         boolean projectileRainUsed;
 
         public int projectileCount() {
@@ -430,8 +414,13 @@ public final class PowerUpApplicator {
             return this.luckyRank;
         }
 
+        public int skipRank() {
+            return this.skipRank;
+        }
+
         public boolean projectileRainUsed() {
             return this.projectileRainUsed;
         }
     }
 }
+

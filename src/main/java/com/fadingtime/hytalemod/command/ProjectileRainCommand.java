@@ -1,3 +1,17 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.protocol.GameMode
+ *  com.hypixel.hytale.server.core.Message
+ *  com.hypixel.hytale.server.core.command.system.CommandContext
+ *  com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ */
 package com.fadingtime.hytalemod.command;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -20,12 +34,12 @@ extends AbstractPlayerCommand {
         this.setPermissionGroup(GameMode.Creative);
     }
 
-    protected void execute(CommandContext context, Store<EntityStore> store, Ref<EntityStore> playerRef, PlayerRef playerRefComponent, World world) {
-        boolean queued = HytaleMod.getInstance().getLifeEssenceLevelSystem().triggerProjectileRainNow(playerRef, store);
-        if (queued) {
-            context.sendMessage(Message.raw("Projectile rain fired."));
+    protected void execute(CommandContext commandContext, Store<EntityStore> store, Ref<EntityStore> ref, PlayerRef playerRef, World world) {
+        boolean bl = HytaleMod.getInstance().getLifeEssenceLevelSystem().triggerProjectileRainNow(ref, store);
+        if (bl) {
+            commandContext.sendMessage(Message.raw((String)"Projectile rain fired."));
         } else {
-            context.sendMessage(Message.raw("Projectile rain failed."));
+            commandContext.sendMessage(Message.raw((String)"Projectile rain failed."));
         }
     }
 }

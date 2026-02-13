@@ -1,3 +1,9 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.config.LifeEssenceConfig;
@@ -11,111 +17,92 @@ public final class LevelingSystem {
     private final int storeOpenLevelInterval;
     private final int storeOpenLevelMax;
 
-    public LevelingSystem(
-        int essencePerLevelBase,
-        int essencePerLevelIncrement,
-        int essencePerLevelMax,
-        int storeOpenLevelStart,
-        int storeOpenLevelInterval,
-        int storeOpenLevelMax
-    ) {
-        // Keep this forgiving so bad config data still results in playable progression.
-        this.essencePerLevelBase = Math.max(1, essencePerLevelBase);
-        this.essencePerLevelIncrement = Math.max(0, essencePerLevelIncrement);
-        this.essencePerLevelMax = Math.max(1, essencePerLevelMax);
-        this.storeOpenLevelStart = Math.max(1, storeOpenLevelStart);
-        this.storeOpenLevelInterval = Math.max(1, storeOpenLevelInterval);
-        this.storeOpenLevelMax = Math.max(this.storeOpenLevelStart, storeOpenLevelMax);
+    public LevelingSystem(int n, int n2, int n3, int n4, int n5, int n6) {
+        this.essencePerLevelBase = Math.max(1, n);
+        this.essencePerLevelIncrement = Math.max(0, n2);
+        this.essencePerLevelMax = Math.max(1, n3);
+        this.storeOpenLevelStart = Math.max(1, n4);
+        this.storeOpenLevelInterval = Math.max(1, n5);
+        this.storeOpenLevelMax = Math.max(this.storeOpenLevelStart, n6);
     }
 
-    public static LevelingSystem fromConfig(@Nonnull LifeEssenceConfig config) {
-        if (config == null) {
+    public static LevelingSystem fromConfig(@Nonnull LifeEssenceConfig lifeEssenceConfig) {
+        if (lifeEssenceConfig == null) {
             throw new IllegalArgumentException("config cannot be null");
         }
-        return new LevelingSystem(
-            config.essencePerLevelBase,
-            config.essencePerLevelIncrement,
-            config.essencePerLevelMax,
-            config.storeOpenLevelStart,
-            config.storeOpenLevelInterval,
-            config.storeOpenLevelMax
-        );
+        return new LevelingSystem(lifeEssenceConfig.essencePerLevelBase, lifeEssenceConfig.essencePerLevelIncrement, lifeEssenceConfig.essencePerLevelMax, lifeEssenceConfig.storeOpenLevelStart, lifeEssenceConfig.storeOpenLevelInterval, lifeEssenceConfig.storeOpenLevelMax);
     }
 
     public LevelProgress newProgress() {
         return new LevelProgress();
     }
 
-    public LevelProgress restoreProgress(int level, int essenceProgress, int lastStoreLevel) {
-        LevelProgress state = new LevelProgress();
-        state.level = Math.max(1, level);
-        state.essenceProgress = Math.max(0, essenceProgress);
-        state.lastStoreLevel = Math.max(0, lastStoreLevel);
-        // Keep persisted progress sane if a bad value sneaks into storage.
-        int required = getEssenceRequiredForLevel(state.level);
-        if (state.essenceProgress >= required) {
-            state.essenceProgress = Math.max(0, required - 1);
+    public LevelProgress restoreProgress(int n, int n2, int n3) {
+        LevelProgress levelProgress = new LevelProgress();
+        levelProgress.level = Math.max(1, n);
+        levelProgress.essenceProgress = Math.max(0, n2);
+        levelProgress.lastStoreLevel = Math.max(0, n3);
+        int n4 = this.getEssenceRequiredForLevel(levelProgress.level);
+        if (levelProgress.essenceProgress >= n4) {
+            levelProgress.essenceProgress = Math.max(0, n4 - 1);
         }
-        return state;
+        return levelProgress;
     }
 
-    public int addEssence(@Nonnull LevelProgress progress, int amount) {
-        if (progress == null) {
+    public int addEssence(@Nonnull LevelProgress levelProgress, int n) {
+        if (levelProgress == null) {
             throw new IllegalArgumentException("progress cannot be null");
         }
-        if (amount <= 0) {
-            return progress.level;
+        if (n <= 0) {
+            return levelProgress.level;
         }
-
-        int previousLevel = progress.level;
-        int total = progress.essenceProgress + amount;
-
-        while (total >= getEssenceRequiredForLevel(progress.level)) {
-            total -= getEssenceRequiredForLevel(progress.level);
-            progress.level++;
+        int n2 = levelProgress.level;
+        int n3 = levelProgress.essenceProgress + n;
+        while (n3 >= this.getEssenceRequiredForLevel(levelProgress.level)) {
+            n3 -= this.getEssenceRequiredForLevel(levelProgress.level);
+            ++levelProgress.level;
         }
-        progress.essenceProgress = total;
-        return previousLevel;
+        levelProgress.essenceProgress = n3;
+        return n2;
     }
 
-    public boolean shouldOpenStore(@Nonnull LevelProgress progress) {
-        if (progress == null) {
+    public boolean shouldOpenStore(@Nonnull LevelProgress levelProgress) {
+        if (levelProgress == null) {
             throw new IllegalArgumentException("progress cannot be null");
         }
-        return progress.lastStoreLevel < getLatestEligibleStoreLevel(progress.level);
+        return levelProgress.lastStoreLevel < this.getLatestEligibleStoreLevel(levelProgress.level);
     }
 
-    public void markStoreOpened(@Nonnull LevelProgress progress) {
-        if (progress == null) {
+    public void markStoreOpened(@Nonnull LevelProgress levelProgress) {
+        if (levelProgress == null) {
             throw new IllegalArgumentException("progress cannot be null");
         }
-        int latestEligible = getLatestEligibleStoreLevel(progress.level);
-        if (latestEligible <= 0) {
+        int n = this.getLatestEligibleStoreLevel(levelProgress.level);
+        if (n <= 0) {
             return;
         }
-        // Store unlocks at checkpoints, not every level, so this stores only the last checkpoint.
-        progress.lastStoreLevel = Math.max(progress.lastStoreLevel, latestEligible);
+        levelProgress.lastStoreLevel = Math.max(levelProgress.lastStoreLevel, n);
     }
 
-    public int getEssenceRequired(@Nonnull LevelProgress progress) {
-        if (progress == null) {
+    public int getEssenceRequired(@Nonnull LevelProgress levelProgress) {
+        if (levelProgress == null) {
             throw new IllegalArgumentException("progress cannot be null");
         }
-        return getEssenceRequiredForLevel(progress.level);
+        return this.getEssenceRequiredForLevel(levelProgress.level);
     }
 
-    public int getEssenceRequiredForLevel(int level) {
-        int safeLevel = Math.max(1, level);
-        return Math.min(this.essencePerLevelMax, this.essencePerLevelBase + (safeLevel - 1) * this.essencePerLevelIncrement);
+    public int getEssenceRequiredForLevel(int n) {
+        int n2 = Math.max(1, n);
+        return Math.min(this.essencePerLevelMax, this.essencePerLevelBase + (n2 - 1) * this.essencePerLevelIncrement);
     }
 
-    public int getLatestEligibleStoreLevel(int level) {
-        if (level < this.storeOpenLevelStart) {
+    public int getLatestEligibleStoreLevel(int n) {
+        if (n < this.storeOpenLevelStart) {
             return 0;
         }
-        int cappedLevel = Math.min(level, this.storeOpenLevelMax);
-        int steps = (cappedLevel - this.storeOpenLevelStart) / this.storeOpenLevelInterval;
-        return this.storeOpenLevelStart + steps * this.storeOpenLevelInterval;
+        int n2 = Math.min(n, this.storeOpenLevelMax);
+        int n3 = (n2 - this.storeOpenLevelStart) / this.storeOpenLevelInterval;
+        return this.storeOpenLevelStart + n3 * this.storeOpenLevelInterval;
     }
 
     public static final class LevelProgress {
@@ -136,3 +123,4 @@ public final class LevelingSystem {
         }
     }
 }
+

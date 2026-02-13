@@ -1,39 +1,62 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  com.hypixel.hytale.builtin.weather.resources.WeatherResource
+ *  com.hypixel.hytale.component.Holder
+ *  com.hypixel.hytale.component.Ref
+ *  com.hypixel.hytale.component.Store
+ *  com.hypixel.hytale.server.core.HytaleServer
+ *  com.hypixel.hytale.server.core.Message
+ *  com.hypixel.hytale.server.core.asset.type.item.config.Item
+ *  com.hypixel.hytale.server.core.entity.LivingEntity
+ *  com.hypixel.hytale.server.core.entity.entities.Player
+ *  com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud
+ *  com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent
+ *  com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent
+ *  com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent
+ *  com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent
+ *  com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent
+ *  com.hypixel.hytale.server.core.inventory.Inventory
+ *  com.hypixel.hytale.server.core.inventory.ItemStack
+ *  com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer
+ *  com.hypixel.hytale.server.core.inventory.container.ItemContainer
+ *  com.hypixel.hytale.server.core.inventory.transaction.ItemStackSlotTransaction
+ *  com.hypixel.hytale.server.core.inventory.transaction.ItemStackTransaction
+ *  com.hypixel.hytale.server.core.inventory.transaction.SlotTransaction
+ *  com.hypixel.hytale.server.core.inventory.transaction.Transaction
+ *  com.hypixel.hytale.server.core.universe.PlayerRef
+ *  com.hypixel.hytale.server.core.universe.world.World
+ *  com.hypixel.hytale.server.core.universe.world.WorldConfig
+ *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
+ *  javax.annotation.Nonnull
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
-import com.fadingtime.hytalemod.config.LifeEssenceConfig;
 import com.fadingtime.hytalemod.config.ConfigManager;
+import com.fadingtime.hytalemod.config.LifeEssenceConfig;
 import com.fadingtime.hytalemod.spawner.MobWaveSpawner;
+import com.fadingtime.hytalemod.system.BossHudSystem;
+import com.fadingtime.hytalemod.system.GamePauseController;
+import com.fadingtime.hytalemod.system.HudUpdateService;
+import com.fadingtime.hytalemod.system.InventoryStateManager;
+import com.fadingtime.hytalemod.system.LevelingSystem;
+import com.fadingtime.hytalemod.system.PlayerDataRepository;
+import com.fadingtime.hytalemod.system.PowerUpApplicator;
+import com.fadingtime.hytalemod.system.StoreSessionManager;
 import com.fadingtime.hytalemod.ui.BossBarHud;
-import com.fadingtime.hytalemod.ui.PowerUpStorePage;
 import com.hypixel.hytale.builtin.weather.resources.WeatherResource;
-import com.hypixel.hytale.component.ComponentAccessor;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.protocol.AttachedToType;
-import com.hypixel.hytale.protocol.ClientCameraView;
-import com.hypixel.hytale.protocol.Direction;
-import com.hypixel.hytale.protocol.MouseInputTargetType;
-import com.hypixel.hytale.protocol.MouseInputType;
-import com.hypixel.hytale.protocol.MovementForceRotationType;
-import com.hypixel.hytale.protocol.Position;
-import com.hypixel.hytale.protocol.PositionDistanceOffsetType;
-import com.hypixel.hytale.protocol.PositionType;
-import com.hypixel.hytale.protocol.RotationType;
-import com.hypixel.hytale.protocol.ServerCameraSettings;
-import com.hypixel.hytale.protocol.Vector3f;
-import com.hypixel.hytale.protocol.MovementSettings;
-import com.hypixel.hytale.protocol.packets.camera.SetServerCamera;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.Message;
 import com.hypixel.hytale.server.core.asset.type.item.config.Item;
 import com.hypixel.hytale.server.core.entity.LivingEntity;
 import com.hypixel.hytale.server.core.entity.entities.Player;
-import com.hypixel.hytale.server.core.entity.entities.player.movement.MovementManager;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
-import com.hypixel.hytale.server.core.entity.entities.player.pages.CustomUIPage;
 import com.hypixel.hytale.server.core.event.events.entity.LivingEntityInventoryChangeEvent;
 import com.hypixel.hytale.server.core.event.events.player.AddPlayerToWorldEvent;
 import com.hypixel.hytale.server.core.event.events.player.DrainPlayerFromWorldEvent;
@@ -41,16 +64,12 @@ import com.hypixel.hytale.server.core.event.events.player.PlayerDisconnectEvent;
 import com.hypixel.hytale.server.core.event.events.player.PlayerReadyEvent;
 import com.hypixel.hytale.server.core.inventory.Inventory;
 import com.hypixel.hytale.server.core.inventory.ItemStack;
-import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.inventory.container.CombinedItemContainer;
+import com.hypixel.hytale.server.core.inventory.container.ItemContainer;
 import com.hypixel.hytale.server.core.inventory.transaction.ItemStackSlotTransaction;
 import com.hypixel.hytale.server.core.inventory.transaction.ItemStackTransaction;
 import com.hypixel.hytale.server.core.inventory.transaction.SlotTransaction;
 import com.hypixel.hytale.server.core.inventory.transaction.Transaction;
-import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
-import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
-import com.hypixel.hytale.server.core.modules.entitystats.modifier.Modifier;
-import com.hypixel.hytale.server.core.modules.entitystats.modifier.StaticModifier;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.WorldConfig;
@@ -63,10 +82,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
-import org.bson.BsonDocument;
 
 public class PlayerProgressionManager {
     private static volatile int ESSENCE_PER_LEVEL_BASE = 15;
@@ -127,286 +144,175 @@ public class PlayerProgressionManager {
     private final ConcurrentMap<UUID, ConcurrentLinkedQueue<ScheduledFuture<?>>> delayedTasksByPlayer = new ConcurrentHashMap();
     private final ConcurrentMap<UUID, Long> disconnectHandledAt = new ConcurrentHashMap<UUID, Long>();
 
-    public PlayerProgressionManager(@Nonnull HytaleMod plugin) {
-        this.plugin = plugin;
-        LifeEssenceConfig config = LifeEssenceConfig.load(plugin.getFile(), HytaleMod.LOGGER);
-        PlayerProgressionManager.applyConfig(config);
-        this.levelingSystem = LevelingSystem.fromConfig(config);
-        this.powerUpApplicator = PowerUpApplicator.fromConfig(config);
-        this.playerDataRepository = new PlayerDataRepository(plugin.getStateStoreManager(), this.levelingSystem, this.powerUpApplicator);
+    public PlayerProgressionManager(@Nonnull HytaleMod hytaleMod) {
+        this.plugin = hytaleMod;
+        LifeEssenceConfig lifeEssenceConfig = LifeEssenceConfig.load(hytaleMod.getFile(), HytaleMod.LOGGER);
+        PlayerProgressionManager.applyConfig(lifeEssenceConfig);
+        this.levelingSystem = LevelingSystem.fromConfig(lifeEssenceConfig);
+        this.powerUpApplicator = PowerUpApplicator.fromConfig(lifeEssenceConfig);
+        this.playerDataRepository = new PlayerDataRepository(hytaleMod.getStateStoreManager(), this.levelingSystem, this.powerUpApplicator);
         this.inventoryStateManager = new InventoryStateManager();
-        this.gamePauseController = new GamePauseController(config.storeSlowmoFactor);
-        this.hudUpdateService = new HudUpdateService(plugin, config.defaultBossName, config.hudReadyDelayMs);
-        this.storeSessionManager = new StoreSessionManager(plugin, this.gamePauseController, config.storeInputGraceMs);
-        plugin.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, this::onPlayerAddedToWorld);
-        plugin.getEventRegistry().registerGlobal(DrainPlayerFromWorldEvent.class, this::onPlayerDrain);
-        plugin.getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
-        plugin.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
-        plugin.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, this::onInventoryChange);
+        this.gamePauseController = new GamePauseController(lifeEssenceConfig.storeSlowmoFactor);
+        this.hudUpdateService = new HudUpdateService(hytaleMod, lifeEssenceConfig.defaultBossName, lifeEssenceConfig.hudReadyDelayMs);
+        this.storeSessionManager = new StoreSessionManager(hytaleMod, this.gamePauseController, lifeEssenceConfig.storeInputGraceMs);
+        hytaleMod.getEventRegistry().registerGlobal(AddPlayerToWorldEvent.class, this::onPlayerAddedToWorld);
+        hytaleMod.getEventRegistry().registerGlobal(DrainPlayerFromWorldEvent.class, this::onPlayerDrain);
+        hytaleMod.getEventRegistry().registerGlobal(PlayerReadyEvent.class, this::onPlayerReady);
+        hytaleMod.getEventRegistry().registerGlobal(PlayerDisconnectEvent.class, this::onPlayerDisconnect);
+        hytaleMod.getEventRegistry().registerGlobal(LivingEntityInventoryChangeEvent.class, this::onInventoryChange);
     }
 
-    private static synchronized void applyConfig(@Nonnull LifeEssenceConfig config) {
-        ESSENCE_PER_LEVEL_BASE = config.essencePerLevelBase;
-        ESSENCE_PER_LEVEL_INCREMENT = config.essencePerLevelIncrement;
-        ESSENCE_PER_LEVEL_MAX = config.essencePerLevelMax;
-        DEFAULT_BOSS_NAME = config.defaultBossName;
-        STORE_SLOWMO_FACTOR = config.storeSlowmoFactor;
-        STORE_OPEN_LEVEL_START = config.storeOpenLevelStart;
-        STORE_OPEN_LEVEL_INTERVAL = config.storeOpenLevelInterval;
-        STORE_OPEN_LEVEL_MAX = config.storeOpenLevelMax;
-        MAX_FIRE_RATE_UPGRADES = config.maxFireRateUpgrades;
-        FIRE_RATE_MULTIPLIER_PER_UPGRADE = config.fireRateMultiplierPerUpgrade;
+    private static synchronized void applyConfig(@Nonnull LifeEssenceConfig lifeEssenceConfig) {
+        ESSENCE_PER_LEVEL_BASE = lifeEssenceConfig.essencePerLevelBase;
+        ESSENCE_PER_LEVEL_INCREMENT = lifeEssenceConfig.essencePerLevelIncrement;
+        ESSENCE_PER_LEVEL_MAX = lifeEssenceConfig.essencePerLevelMax;
+        DEFAULT_BOSS_NAME = lifeEssenceConfig.defaultBossName;
+        STORE_SLOWMO_FACTOR = lifeEssenceConfig.storeSlowmoFactor;
+        STORE_OPEN_LEVEL_START = lifeEssenceConfig.storeOpenLevelStart;
+        STORE_OPEN_LEVEL_INTERVAL = lifeEssenceConfig.storeOpenLevelInterval;
+        STORE_OPEN_LEVEL_MAX = lifeEssenceConfig.storeOpenLevelMax;
+        MAX_FIRE_RATE_UPGRADES = lifeEssenceConfig.maxFireRateUpgrades;
+        FIRE_RATE_MULTIPLIER_PER_UPGRADE = lifeEssenceConfig.fireRateMultiplierPerUpgrade;
         MAX_FIRE_RATE_MULTIPLIER = (float)Math.pow(FIRE_RATE_MULTIPLIER_PER_UPGRADE, MAX_FIRE_RATE_UPGRADES);
-        MAX_PICKUP_RANGE_UPGRADES = config.maxPickupRangeUpgrades;
-        PICKUP_RANGE_PER_UPGRADE = config.pickupRangePerUpgrade;
-        MAX_PICKUP_RANGE_BONUS = config.maxPickupRangeBonus;
-        MAX_EXTRA_PROJECTILES = config.maxExtraProjectiles;
-        MAX_BOUNCE_UPGRADES = config.maxBounceUpgrades;
-        MAX_WEAPON_DAMAGE_UPGRADES = config.maxWeaponDamageUpgrades;
-        WEAPON_DAMAGE_BONUS_PER_UPGRADE = config.weaponDamageBonusPerUpgrade;
-        MAX_HEALTH_UPGRADES = config.maxHealthUpgrades;
-        HEALTH_BONUS_PER_UPGRADE = config.healthBonusPerUpgrade;
-        MAX_SPEED_UPGRADES = config.maxSpeedUpgrades;
-        MAX_PROJECTILE_RAIN_UPGRADES = config.maxProjectileRainUpgrades;
-        MAX_LUCKY_UPGRADES = config.maxLuckyUpgrades;
-        PROJECTILE_RAIN_BURSTS_ON_PICK = config.projectileRainBurstsOnPick;
-        SPEED_BONUS_PER_UPGRADE = config.speedBonusPerUpgrade;
-        MAX_SPEED_MULTIPLIER = config.maxSpeedMultiplier;
-        PLAYER_BASE_SPEED = config.playerBaseSpeed;
-        STAMINA_BONUS_PER_SPEED_UPGRADE = config.staminaBonusPerSpeedUpgrade;
-        LUCKY_ESSENCE_BONUS_PER_RANK = config.luckyEssenceBonusPerRank;
-        HUD_READY_DELAY_MS = config.hudReadyDelayMs;
-        STORE_INPUT_GRACE_MS = config.storeInputGraceMs;
-        JOIN_WEAPON_ITEM_ID = config.joinWeaponItemId;
-        JOIN_SHORTBOW_ITEM_ID = config.joinShortbowItemId;
-        JOIN_ARROW_ITEM_ID = config.joinArrowItemId;
-        JOIN_FOOD_ITEM_ID = config.joinFoodItemId;
-        JOIN_ARMOR_HEAD_ITEM_ID = config.joinArmorHeadItemId;
-        JOIN_ARMOR_CHEST_ITEM_ID = config.joinArmorChestItemId;
-        JOIN_ARMOR_HANDS_ITEM_ID = config.joinArmorHandsItemId;
-        JOIN_ARMOR_LEGS_ITEM_ID = config.joinArmorLegsItemId;
-        JOIN_ARROW_QUANTITY = config.joinArrowQuantity;
-        JOIN_FOOD_QUANTITY = config.joinFoodQuantity;
-        JOIN_DEFAULT_DURABILITY = config.joinDefaultDurability;
-        JOIN_FORCED_WEATHER_ID = config.joinForcedWeatherId;
+        MAX_PICKUP_RANGE_UPGRADES = lifeEssenceConfig.maxPickupRangeUpgrades;
+        PICKUP_RANGE_PER_UPGRADE = lifeEssenceConfig.pickupRangePerUpgrade;
+        MAX_PICKUP_RANGE_BONUS = lifeEssenceConfig.maxPickupRangeBonus;
+        MAX_EXTRA_PROJECTILES = lifeEssenceConfig.maxExtraProjectiles;
+        MAX_BOUNCE_UPGRADES = lifeEssenceConfig.maxBounceUpgrades;
+        MAX_WEAPON_DAMAGE_UPGRADES = lifeEssenceConfig.maxWeaponDamageUpgrades;
+        WEAPON_DAMAGE_BONUS_PER_UPGRADE = lifeEssenceConfig.weaponDamageBonusPerUpgrade;
+        MAX_HEALTH_UPGRADES = lifeEssenceConfig.maxHealthUpgrades;
+        HEALTH_BONUS_PER_UPGRADE = lifeEssenceConfig.healthBonusPerUpgrade;
+        MAX_SPEED_UPGRADES = lifeEssenceConfig.maxSpeedUpgrades;
+        MAX_PROJECTILE_RAIN_UPGRADES = lifeEssenceConfig.maxProjectileRainUpgrades;
+        MAX_LUCKY_UPGRADES = lifeEssenceConfig.maxLuckyUpgrades;
+        PROJECTILE_RAIN_BURSTS_ON_PICK = lifeEssenceConfig.projectileRainBurstsOnPick;
+        SPEED_BONUS_PER_UPGRADE = lifeEssenceConfig.speedBonusPerUpgrade;
+        MAX_SPEED_MULTIPLIER = lifeEssenceConfig.maxSpeedMultiplier;
+        PLAYER_BASE_SPEED = lifeEssenceConfig.playerBaseSpeed;
+        STAMINA_BONUS_PER_SPEED_UPGRADE = lifeEssenceConfig.staminaBonusPerSpeedUpgrade;
+        LUCKY_ESSENCE_BONUS_PER_RANK = lifeEssenceConfig.luckyEssenceBonusPerRank;
+        HUD_READY_DELAY_MS = lifeEssenceConfig.hudReadyDelayMs;
+        STORE_INPUT_GRACE_MS = lifeEssenceConfig.storeInputGraceMs;
+        JOIN_WEAPON_ITEM_ID = lifeEssenceConfig.joinWeaponItemId;
+        JOIN_SHORTBOW_ITEM_ID = lifeEssenceConfig.joinShortbowItemId;
+        JOIN_ARROW_ITEM_ID = lifeEssenceConfig.joinArrowItemId;
+        JOIN_FOOD_ITEM_ID = lifeEssenceConfig.joinFoodItemId;
+        JOIN_ARMOR_HEAD_ITEM_ID = lifeEssenceConfig.joinArmorHeadItemId;
+        JOIN_ARMOR_CHEST_ITEM_ID = lifeEssenceConfig.joinArmorChestItemId;
+        JOIN_ARMOR_HANDS_ITEM_ID = lifeEssenceConfig.joinArmorHandsItemId;
+        JOIN_ARMOR_LEGS_ITEM_ID = lifeEssenceConfig.joinArmorLegsItemId;
+        JOIN_ARROW_QUANTITY = lifeEssenceConfig.joinArrowQuantity;
+        JOIN_FOOD_QUANTITY = lifeEssenceConfig.joinFoodQuantity;
+        JOIN_DEFAULT_DURABILITY = lifeEssenceConfig.joinDefaultDurability;
+        JOIN_FORCED_WEATHER_ID = lifeEssenceConfig.joinForcedWeatherId;
     }
 
-    private void onPlayerAddedToWorld(@Nonnull AddPlayerToWorldEvent event) {
-        Holder<EntityStore> holder = event.getHolder();
+    private void onPlayerAddedToWorld(@Nonnull AddPlayerToWorldEvent addPlayerToWorldEvent) {
+        Holder holder = addPlayerToWorldEvent.getHolder();
         if (holder == null) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)holder.getComponent(PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)holder.getComponent(PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        Ref playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
+        Ref ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) {
             return;
         }
-        Store store = playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
-        World world = event.getWorld();
+        World world = addPlayerToWorldEvent.getWorld();
         if (world == null) {
             return;
         }
-        boolean inGameplayWorld = true;
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+        boolean bl = true;
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
-        if (!inGameplayWorld) {
-            VampireShooterComponent shooter = (VampireShooterComponent)store.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-            if (shooter != null) {
-                this.resetPowerState(shooter);
+        UUID uUID = playerRef.getUuid();
+        String string = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
+        if (!bl) {
+            BossHudSystem bossHudSystem;
+            VampireShooterComponent vampireShooterComponent = (VampireShooterComponent)store.getComponent(ref, HytaleMod.getInstance().getVampireShooterComponentType());
+            if (vampireShooterComponent != null) {
+                this.resetPowerState(vampireShooterComponent);
             }
-            BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
-            if (bossHudSystem != null) {
-                bossHudSystem.setHudSuppressed(playerId, true);
+            if ((bossHudSystem = HytaleMod.getInstance().getBossHudSystem()) != null) {
+                bossHudSystem.setHudSuppressed(uUID, true);
             }
-            this.scheduleHudUpdate(world, playerRefComponent, () -> {
-                if (!playerRef.isValid()) {
+            this.scheduleHudUpdate(world, playerRef, () -> {
+                if (!ref.isValid()) {
                     return;
                 }
-                Player readyPlayer = (Player)store.getComponent(playerRef, Player.getComponentType());
-                if (readyPlayer == null) {
+                Player player2 = (Player)store.getComponent(ref, Player.getComponentType());
+                if (player2 == null) {
                     return;
                 }
-                this.clearHudForPlayer(readyPlayer, playerRefComponent, playerId);
+                this.clearHudForPlayer(player2, playerRef, uUID);
             });
             return;
         }
-        // Inventory handling for gameplay worlds is done in onPlayerReady after the
-        // previous world's snapshot is saved. Don't clear here.
         BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
         if (bossHudSystem != null) {
-            bossHudSystem.setHudSuppressed(playerId, false);
+            bossHudSystem.setHudSuppressed(uUID, false);
         }
-        this.pendingHudClear.remove(playerId);
-        this.scheduleHudUpdate(world, playerRefComponent, () -> {
+        this.pendingHudClear.remove(uUID);
+        this.scheduleHudUpdate(world, playerRef, () -> {
             if (!this.isGameplayWorld((Store<EntityStore>)store)) {
                 return;
             }
-            this.loadStateIfMissing(playerId, worldKey);
-            LevelingSystem.LevelProgress state = this.playerDataRepository.getOrCreateLevel(playerId);
-            BossBarHud hud = this.ensureHud(playerComponent, playerRefComponent, (Store<EntityStore>)store);
-            if (hud != null) {
-                hud.setLevelHudVisible(true);
-                this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel (add) player=%s world=%s level=%d essence=%d/%d", (Object)playerId, (Object)worldKey, (Object)state.level(), (Object)state.essenceProgress(), (Object)this.levelingSystem.getEssenceRequired(state));
-                hud.updateLevel(state.level(), state.essenceProgress(), this.levelingSystem.getEssenceRequired(state));
+            this.loadStateIfMissing(uUID, string);
+            LevelingSystem.LevelProgress levelProgress = this.playerDataRepository.getOrCreateLevel(uUID);
+            BossBarHud bossBarHud = this.ensureHud(player, playerRef, (Store<EntityStore>)store);
+            if (bossBarHud != null) {
+                bossBarHud.setLevelHudVisible(true);
+                bossBarHud.updateLevel(levelProgress.level(), levelProgress.essenceProgress(), this.levelingSystem.getEssenceRequired(levelProgress));
             } else {
-                this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel skipped (add) player=%s world=%s reason=ensureHud null", (Object)playerId, (Object)worldKey);
             }
         });
     }
 
-    private void onPlayerDrain(@Nonnull DrainPlayerFromWorldEvent event) {
-        Holder<EntityStore> holder = event.getHolder();
+    private void onPlayerDrain(@Nonnull DrainPlayerFromWorldEvent drainPlayerFromWorldEvent) {
+        Holder holder = drainPlayerFromWorldEvent.getHolder();
         if (holder == null) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)holder.getComponent(PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)holder.getComponent(PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        Ref playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
+        Ref ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) {
             return;
         }
-        Store store = playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
-        World world = event.getWorld();
+        World world = drainPlayerFromWorldEvent.getWorld();
         if (world == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] onPlayerDrain player=%s world=%s", (Object)playerId, (Object)world.getName());
-        this.pendingHudClear.put(playerId, true);
-        this.cancelAllScheduledTasks(playerId);
+        UUID uUID = playerRef.getUuid();
+        this.pendingHudClear.put(uUID, true);
+        this.cancelAllScheduledTasks(uUID);
         BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
         if (bossHudSystem != null) {
-            bossHudSystem.setHudSuppressed(playerId, true);
+            bossHudSystem.setHudSuppressed(uUID, true);
         }
-        this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] clearHudForPlayer deferred (drain) player=%s", (Object)playerId);
     }
 
-    private void onPlayerReady(@Nonnull PlayerReadyEvent event) {
-        Ref playerRef = event.getPlayerRef();
-        if (playerRef == null || !playerRef.isValid()) {
+    private void onPlayerReady(@Nonnull PlayerReadyEvent playerReadyEvent) {
+        Ref ref = playerReadyEvent.getPlayerRef();
+        if (ref == null || !ref.isValid()) {
             return;
         }
-        Store store = playerRef.getStore();
-        if (store == null) {
-            return;
-        }
-        World world = (World)((EntityStore)store.getExternalData()).getWorld();
-        if (world == null) {
-            return;
-        }
-        this.executeIfTicking(world, () -> {
-            VampireShooterComponent shooter;
-            if (!playerRef.isValid()) {
-                return;
-            }
-            Store worldStore = playerRef.getStore();
-            if (worldStore == null) {
-                return;
-            }
-            PlayerRef playerRefComponent = (PlayerRef)worldStore.getComponent(playerRef, PlayerRef.getComponentType());
-            if (playerRefComponent == null) {
-                return;
-            }
-            Player playerComponent = (Player)worldStore.getComponent(playerRef, Player.getComponentType());
-            if (playerComponent == null) {
-                return;
-            }
-            UUID playerId = playerRefComponent.getUuid();
-            this.disconnectHandledAt.remove(playerId);
-            String worldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)worldStore);
-            boolean inGameplayWorld = this.isGameplayWorld((Store<EntityStore>)worldStore);
-            World currentWorld = (World)((EntityStore)worldStore.getExternalData()).getWorld();
-            if (currentWorld == null) {
-                return;
-            }
-            BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
-            if (bossHudSystem != null) {
-                bossHudSystem.setHudSuppressed(playerId, !inGameplayWorld);
-            }
-            this.switchInventoryForWorld(playerId, worldKey, playerComponent);
-            if (!inGameplayWorld) {
-                this.scheduleHudUpdate(currentWorld, playerRefComponent, () -> {
-                    boolean wasGameplayWorld = Boolean.TRUE.equals(this.lastWasGameplayWorld.remove(playerId));
-                    boolean clearHud = Boolean.TRUE.equals(this.pendingHudClear.remove(playerId)) || wasGameplayWorld;
-                    if (wasGameplayWorld) {
-                        this.resetCamera(playerRefComponent);
-                    }
-                    VampireShooterComponent nonGameplayShooter = (VampireShooterComponent)worldStore.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-                    if (nonGameplayShooter != null) {
-                        this.resetPowerState(nonGameplayShooter);
-                    }
-                    CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
-                    if (clearHud || currentHud instanceof BossBarHud) {
-                        this.clearHudForPlayer(playerComponent, playerRefComponent, playerId);
-                    }
-                });
-                return;
-            }
-            if (!Boolean.TRUE.equals(this.lastWasGameplayWorld.put(playerId, true))) {
-                this.forceTopdownCameraDirect(playerRefComponent);
-                Inventory inventory = playerComponent.getInventory();
-                if (inventory != null) {
-                    this.clearInventory(inventory);
-                    this.saveInventorySnapshot(playerId, worldKey, playerComponent);
-                }
-            }
-            this.loadStateIfMissing(playerId, worldKey);
-            LevelingSystem.LevelProgress state = this.playerDataRepository.getOrCreateLevel(playerId);
-            this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey);
-            this.scheduleHudUpdate(currentWorld, playerRefComponent, () -> {
-                BossBarHud hud = this.ensureHud(playerComponent, playerRefComponent, worldStore);
-                if (hud != null) {
-                    this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel (ready) player=%s world=%s level=%d essence=%d/%d", (Object)playerId, (Object)worldKey, (Object)state.level(), (Object)state.essenceProgress(), (Object)this.levelingSystem.getEssenceRequired(state));
-                    hud.updateLevel(state.level(), state.essenceProgress(), this.levelingSystem.getEssenceRequired(state));
-                } else {
-                    this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel skipped (ready) player=%s world=%s reason=ensureHud null", (Object)playerId, (Object)worldKey);
-                }
-                VampireShooterComponent delayedShooter = (VampireShooterComponent)worldStore.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-                if (delayedShooter != null) {
-                    this.restorePowerState(playerId, delayedShooter, worldKey);
-                }
-                this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey);
-            });
-            this.schedulePlayerWorldTask(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), 300L);
-            this.schedulePlayerWorldTask(currentWorld, playerRefComponent, () -> this.applyPlayerPowerBonuses(playerId, (Ref<EntityStore>)playerRef, worldStore, playerRefComponent, worldKey), 1200L);
-            this.applyJoinDefaults((Ref<EntityStore>)playerRef, (Store<EntityStore>)worldStore, currentWorld);
-        });
-    }
-
-    private void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent event) {
-        PlayerRef playerRefComponent = event.getPlayerRef();
-        if (playerRefComponent == null) {
-            return;
-        }
-        UUID playerId = playerRefComponent.getUuid();
-        long now = System.currentTimeMillis();
-        Long previousHandledAt = (Long)this.disconnectHandledAt.put(playerId, now);
-        if (previousHandledAt != null && now - previousHandledAt.longValue() < 2000L) {
-            return;
-        }
-        this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] onPlayerDisconnect player=%s", (Object)playerId);
-        this.cancelAllScheduledTasks(playerId);
-        this.resetTransientPlayerState(playerId);
-        Ref playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
-            return;
-        }
-        Store store = playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
@@ -415,354 +321,440 @@ public class PlayerProgressionManager {
             return;
         }
         this.executeIfTicking(world, () -> {
-            if (!playerRef.isValid()) {
+            Object object;
+            if (!ref.isValid()) {
                 return;
             }
-            Player playerComponent;
-            try {
-                playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-            }
-            catch (IllegalStateException exception) {
-                this.plugin.getLogger().at(Level.FINE).log("Skipping inventory snapshot because player store state changed during world transfer.");
+            Store store2 = ref.getStore();
+            if (store2 == null) {
                 return;
             }
-            if (playerComponent == null) {
+            PlayerRef playerRef = (PlayerRef)store2.getComponent(ref, PlayerRef.getComponentType());
+            if (playerRef == null) {
                 return;
             }
-            String inventoryWorldKey = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
-            this.saveInventorySnapshot(playerId, inventoryWorldKey, playerComponent);
+            Player player = (Player)store2.getComponent(ref, Player.getComponentType());
+            if (player == null) {
+                return;
+            }
+            UUID uUID = playerRef.getUuid();
+            this.disconnectHandledAt.remove(uUID);
+            String string = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store2);
+            boolean bl = this.isGameplayWorld((Store<EntityStore>)store2);
+            World world2 = ((EntityStore)store2.getExternalData()).getWorld();
+            if (world2 == null) {
+                return;
+            }
+            BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
+            if (bossHudSystem != null) {
+                bossHudSystem.setHudSuppressed(uUID, !bl);
+            }
+            this.switchInventoryForWorld(uUID, string, player);
+            if (!bl) {
+                this.scheduleHudUpdate(world2, playerRef, () -> {
+                    VampireShooterComponent vampireShooterComponent;
+                    boolean bl2 = Boolean.TRUE.equals(this.lastWasGameplayWorld.remove(uUID));
+                    boolean bl3 = Boolean.TRUE.equals(this.pendingHudClear.remove(uUID)) || bl2;
+                    if (bl2) {
+                        this.resetCamera(playerRef);
+                    }
+                    if ((vampireShooterComponent = (VampireShooterComponent)store2.getComponent(ref, HytaleMod.getInstance().getVampireShooterComponentType())) != null) {
+                        this.resetPowerState(vampireShooterComponent);
+                    }
+                    CustomUIHud customUIHud = player.getHudManager().getCustomHud();
+                    if (bl3 || customUIHud instanceof BossBarHud) {
+                        this.clearHudForPlayer(player, playerRef, uUID);
+                    }
+                });
+                return;
+            }
+            if (!Boolean.TRUE.equals(this.lastWasGameplayWorld.put(uUID, true))) {
+                this.forceTopdownCameraDirect(playerRef);
+                object = player.getInventory();
+                if (object != null) {
+                    this.clearInventory((Inventory)object);
+                    this.saveInventorySnapshot(uUID, string, player);
+                }
+            }
+            this.loadStateIfMissing(uUID, string);
+            object = this.playerDataRepository.getOrCreateLevel(uUID);
+            final LevelingSystem.LevelProgress levelProgress = (LevelingSystem.LevelProgress)object;
+            this.applyPlayerPowerBonuses(uUID, (Ref<EntityStore>)ref, (Store<EntityStore>)store2, playerRef, string);
+            this.scheduleHudUpdate(world2, playerRef, () -> this.updateHudOnPlayerReady(player, playerRef, store2, uUID, string, levelProgress, ref));
+            this.schedulePlayerWorldTask(world2, playerRef, () -> this.applyPlayerPowerBonuses(uUID, (Ref<EntityStore>)ref, (Store<EntityStore>)store2, playerRef, string), 300L);
+            this.schedulePlayerWorldTask(world2, playerRef, () -> this.applyPlayerPowerBonuses(uUID, (Ref<EntityStore>)ref, (Store<EntityStore>)store2, playerRef, string), 1200L);
+            this.applyJoinDefaults((Ref<EntityStore>)ref, (Store<EntityStore>)store2, world2);
         });
     }
 
-    private void onInventoryChange(@Nonnull LivingEntityInventoryChangeEvent event) {
-        LivingEntity entity = (LivingEntity)event.getEntity();
-        if (!(entity instanceof Player)) {
+    private void onPlayerDisconnect(@Nonnull PlayerDisconnectEvent playerDisconnectEvent) {
+        long l;
+        PlayerRef playerRef = playerDisconnectEvent.getPlayerRef();
+        if (playerRef == null) {
             return;
         }
-        Ref playerRef = entity.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
+        UUID uUID = playerRef.getUuid();
+        Long l2 = this.disconnectHandledAt.put(uUID, l = System.currentTimeMillis());
+        if (l2 != null && l - l2 < 2000L) {
             return;
         }
-        Store store = playerRef.getStore();
+        this.cancelAllScheduledTasks(uUID);
+        this.resetTransientPlayerState(uUID);
+        Ref ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) {
+            return;
+        }
+        Store store = ref.getStore();
+        if (store == null) {
+            return;
+        }
+        World world = ((EntityStore)store.getExternalData()).getWorld();
+        if (world == null) {
+            return;
+        }
+        this.executeIfTicking(world, () -> {
+            Player player;
+            if (!ref.isValid()) {
+                return;
+            }
+            try {
+                player = (Player)store.getComponent(ref, Player.getComponentType());
+            }
+            catch (IllegalStateException illegalStateException) {
+                return;
+            }
+            if (player == null) {
+                return;
+            }
+            String string = PlayerProgressionManager.getWorldKey((Store<EntityStore>)store);
+            this.saveInventorySnapshot(uUID, string, player);
+        });
+    }
+
+    private void onInventoryChange(@Nonnull LivingEntityInventoryChangeEvent livingEntityInventoryChangeEvent) {
+        LivingEntity livingEntity = (LivingEntity)livingEntityInventoryChangeEvent.getEntity();
+        if (!(livingEntity instanceof Player)) {
+            return;
+        }
+        Ref ref = livingEntity.getReference();
+        if (ref == null || !ref.isValid()) {
+            return;
+        }
+        Store store = ref.getStore();
         if (store == null) {
             return;
         }
         if (!this.isGameplayWorld((Store<EntityStore>)store)) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent == null) {
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player == null) {
             return;
         }
-        int delta = this.getLifeEssenceDelta(event.getTransaction());
-        if (delta <= 0) {
+        int n = this.getLifeEssenceDelta(livingEntityInventoryChangeEvent.getTransaction());
+        if (n <= 0) {
             return;
         }
-        this.grantEssence(playerRefComponent, playerComponent, (Store<EntityStore>)store, delta);
+        this.grantEssence(playerRef, player, (Store<EntityStore>)store, n);
     }
 
-    public void grantEssence(@Nonnull PlayerRef playerRefComponent, @Nonnull Player playerComponent, @Nonnull Store<EntityStore> store, int amount) {
-        BossBarHud hud;
-        if (amount <= 0) {
+    public void grantEssence(@Nonnull PlayerRef playerRef, @Nonnull Player player, @Nonnull Store<EntityStore> store, int n) {
+        BossBarHud bossBarHud;
+        if (n <= 0) {
             return;
         }
         if (!this.isGameplayWorld(store)) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
-        this.loadStateIfMissing(playerId, worldKey);
-        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(playerId);
-        int bonus = this.powerUpApplicator.getLuckyEssenceBonus(powerState);
-        int effectiveAmount = Math.max(1, amount + bonus);
-        LevelingSystem.LevelProgress state = this.playerDataRepository.getOrCreateLevel(playerId);
-        int previousLevel = this.levelingSystem.addEssence(state, effectiveAmount);
-        if (state.level() != previousLevel) {
-            this.plugin.getLogger().at(Level.INFO).log("Level up for %s: %d -> %d (lastStoreLevel=%d, shouldOpenStore=%s)", (Object)playerId, (Object)previousLevel, (Object)state.level(), (Object)state.lastStoreLevel(), (Object)this.levelingSystem.shouldOpenStore(state));
+        UUID uUID = playerRef.getUuid();
+        String string = PlayerProgressionManager.getWorldKey(store);
+        this.loadStateIfMissing(uUID, string);
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(uUID);
+        int n2 = this.powerUpApplicator.getLuckyEssenceBonus(powerState);
+        int n3 = Math.max(1, n + n2);
+        LevelingSystem.LevelProgress levelProgress = this.playerDataRepository.getOrCreateLevel(uUID);
+        int n4 = this.levelingSystem.addEssence(levelProgress, n3);
+        if (levelProgress.level() != n4) {
+            this.plugin.getLogger().at(Level.INFO).log("Level up for %s: %d -> %d (lastStoreLevel=%d, shouldOpenStore=%s)", (Object)uUID, (Object)n4, (Object)levelProgress.level(), (Object)levelProgress.lastStoreLevel(), (Object)this.levelingSystem.shouldOpenStore(levelProgress));
         }
-        if ((hud = this.ensureHud(playerComponent, playerRefComponent, store)) != null) {
-            this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel (essence) player=%s world=%s level=%d essence=%d/%d", (Object)playerId, (Object)worldKey, (Object)state.level(), (Object)state.essenceProgress(), (Object)this.levelingSystem.getEssenceRequired(state));
-            hud.updateLevel(state.level(), state.essenceProgress(), this.levelingSystem.getEssenceRequired(state));
+        if ((bossBarHud = this.ensureHud(player, playerRef, store)) != null) {
+            bossBarHud.updateLevel(levelProgress.level(), levelProgress.essenceProgress(), this.levelingSystem.getEssenceRequired(levelProgress));
         } else {
-            this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] updateLevel skipped (essence) player=%s world=%s reason=ensureHud null", (Object)playerId, (Object)worldKey);
         }
-        if (this.levelingSystem.shouldOpenStore(state)) {
-            Store playerStore;
-            this.levelingSystem.markStoreOpened(state);
-            this.savePlayerState(playerId, worldKey);
-            Ref playerRef = playerRefComponent.getReference();
-            if (playerRef != null && playerRef.isValid() && (playerStore = playerRef.getStore()) != null) {
-                this.openStoreForPlayer((Ref<EntityStore>)playerRef, (Store<EntityStore>)playerStore, playerComponent, playerRefComponent, state.level());
+        if (this.levelingSystem.shouldOpenStore(levelProgress)) {
+            Store store2;
+            this.levelingSystem.markStoreOpened(levelProgress);
+            this.savePlayerState(uUID, string);
+            Ref ref = playerRef.getReference();
+            if (ref != null && ref.isValid() && (store2 = ref.getStore()) != null) {
+                this.openStoreForPlayer((Ref<EntityStore>)ref, (Store<EntityStore>)store2, player, playerRef, levelProgress.level());
             }
         } else {
-            this.savePlayerState(playerId, worldKey);
+            this.savePlayerState(uUID, string);
         }
     }
 
-    public void applyPowerUp(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull String choice) {
-        boolean triggerProjectileRain;
+    public void applyPowerUp(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull String string) {
+        int n;
         if (!this.isGameplayWorld(store)) {
             return;
         }
-        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(playerRef, PlayerRef.getComponentType());
-        if (playerRefComponent == null) {
+        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
+        if (playerRef == null) {
             return;
         }
-        UUID playerId = playerRefComponent.getUuid();
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
-        this.loadStateIfMissing(playerId, worldKey);
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getOrCreatePower(playerId);
-        String choiceLabel = this.getPowerChoiceLabel(choice);
-        if (choiceLabel == null) {
+        UUID uUID = playerRef.getUuid();
+        String string2 = PlayerProgressionManager.getWorldKey(store);
+        this.loadStateIfMissing(uUID, string2);
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(uUID);
+        String string3 = this.getPowerChoiceLabel(string);
+        if (string3 == null) {
             return;
         }
-        triggerProjectileRain = this.powerUpApplicator.applyChoice(state, choice);
-        if (triggerProjectileRain && this.isProjectileRainUsedForActiveGroup(playerId, store)) {
+        boolean bl = this.powerUpApplicator.applyChoice(powerState, string);
+        if (bl && this.isProjectileRainUsedForActiveGroup(uUID, store)) {
             return;
         }
-        VampireShooterComponent shooter = (VampireShooterComponent)store.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-        if (triggerProjectileRain) {
-            if (shooter == null) {
+        VampireShooterComponent vampireShooterComponent = (VampireShooterComponent)store.getComponent(ref, HytaleMod.getInstance().getVampireShooterComponentType());
+        if (bl) {
+            if (vampireShooterComponent == null) {
                 return;
             }
-            for (int i = 0; i < this.powerUpApplicator.getProjectileRainBurstsOnPick(); ++i) {
-                shooter.queueProjectileRain();
+            for (n = 0; n < this.powerUpApplicator.getProjectileRainBurstsOnPick(); ++n) {
+                vampireShooterComponent.queueProjectileRain();
             }
-            this.markProjectileRainUsedForActiveGroup(playerId, store, worldKey);
+            this.markProjectileRainUsedForActiveGroup(uUID, store, string2);
         }
-        if (shooter != null) {
-            this.restorePowerState(playerId, shooter, worldKey);
+        if (vampireShooterComponent != null) {
+            this.restorePowerState(uUID, vampireShooterComponent, string2);
         }
-        this.applyPlayerPowerBonuses(playerId, playerRef, store, playerRefComponent, worldKey);
-        this.savePlayerState(playerId, worldKey);
-        int rank = this.getPowerChoiceRank(choice, state);
-        this.announcePowerChoice(playerRef, store, playerId, choiceLabel, rank);
+        this.applyPlayerPowerBonuses(uUID, ref, store, playerRef, string2);
+        this.savePlayerState(uUID, string2);
+        n = this.getPowerChoiceRank(string, powerState);
+        this.announcePowerChoice(ref, store, uUID, string3, n);
     }
 
-    public boolean triggerProjectileRainNow(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store) {
-        if (!this.isGameplayWorld(store) || playerRef == null || !playerRef.isValid()) {
+    public boolean triggerProjectileRainNow(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        if (!this.isGameplayWorld(store) || ref == null || !ref.isValid()) {
             return false;
         }
-        VampireShooterComponent shooter = (VampireShooterComponent)store.getComponent(playerRef, HytaleMod.getInstance().getVampireShooterComponentType());
-        if (shooter == null) {
+        VampireShooterComponent vampireShooterComponent = (VampireShooterComponent)store.getComponent(ref, HytaleMod.getInstance().getVampireShooterComponentType());
+        if (vampireShooterComponent == null) {
             return false;
         }
         for (int i = 0; i < this.powerUpApplicator.getProjectileRainBurstsOnPick(); ++i) {
-            shooter.queueProjectileRain();
+            vampireShooterComponent.queueProjectileRain();
         }
         return true;
     }
 
-    private void announcePowerChoice(@Nonnull Ref<EntityStore> chooserRef, @Nonnull Store<EntityStore> store, @Nonnull UUID chooserId, @Nonnull String choiceLabel, int rank) {
-        String chooserName;
-        Player chooserPlayer = (Player)store.getComponent(chooserRef, Player.getComponentType());
-        if (chooserPlayer != null && chooserPlayer.getDisplayName() != null && !chooserPlayer.getDisplayName().isBlank()) {
-            chooserName = chooserPlayer.getDisplayName().trim();
-        } else {
-            chooserName = chooserId.toString();
-        }
-        chooserName = chooserName.toUpperCase(Locale.ROOT);
-        Message message = Message.join((Message[])new Message[]{Message.raw(chooserName + " "), Message.raw("Selected: ").color("#f0c766").bold(true), Message.raw(choiceLabel + " ").color("#f0c766").bold(true), Message.raw("- Rank " + rank).color("#4f8f5f").bold(true)});
-        MobWaveSpawner spawner = HytaleMod.getInstance().getMobWaveSpawner();
-        if (spawner != null) {
-            UUID ownerId = spawner.resolveOwnerId(chooserId);
-            List<Ref<EntityStore>> refs = spawner.getPlayerRefsForOwner(ownerId);
-            if (!refs.isEmpty()) {
-                for (Ref<EntityStore> ref : refs) {
-                    if (ref == null || !ref.isValid()) {
-                        continue;
-                    }
-                    Store<EntityStore> memberStore = ref.getStore();
-                    if (memberStore == null) {
-                        continue;
-                    }
-                    Player memberPlayer = (Player)memberStore.getComponent(ref, Player.getComponentType());
-                    if (memberPlayer == null) {
-                        continue;
-                    }
-                    memberPlayer.sendMessage(message);
-                }
-                return;
+    private void announcePowerChoice(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull UUID uUID, @Nonnull String string, int n) {
+        UUID uUID2;
+        List<Ref<EntityStore>> list;
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        String string2 = player != null && player.getDisplayName() != null && !player.getDisplayName().isBlank() ? player.getDisplayName().trim() : uUID.toString();
+        string2 = string2.toUpperCase(Locale.ROOT);
+        Message message = Message.join((Message[])new Message[]{Message.raw((String)(string2 + " ")), Message.raw((String)"Selected: ").color("#f0c766").bold(true), Message.raw((String)(string + " ")).color("#f0c766").bold(true), Message.raw((String)("- Rank " + n)).color("#4f8f5f").bold(true)});
+        MobWaveSpawner mobWaveSpawner = HytaleMod.getInstance().getMobWaveSpawner();
+        if (mobWaveSpawner != null && !(list = mobWaveSpawner.getPlayerRefsForOwner(uUID2 = mobWaveSpawner.resolveOwnerId(uUID))).isEmpty()) {
+            for (Ref<EntityStore> ref2 : list) {
+                Player player2;
+                Store store2;
+                if (ref2 == null || !ref2.isValid() || (store2 = ref2.getStore()) == null || (player2 = (Player)store2.getComponent(ref2, Player.getComponentType())) == null) continue;
+                player2.sendMessage(message);
             }
+            return;
         }
-        if (chooserPlayer != null) {
-            chooserPlayer.sendMessage(message);
+        if (player != null) {
+            player.sendMessage(message);
         }
     }
 
-    private int getPowerChoiceRank(@Nonnull String choice, @Nonnull PowerUpApplicator.PowerState state) {
-        return this.powerUpApplicator.getChoiceRank(choice, state);
+    private int getPowerChoiceRank(@Nonnull String string, @Nonnull PowerUpApplicator.PowerState powerState) {
+        return this.powerUpApplicator.getChoiceRank(string, powerState);
     }
 
-    private String getPowerChoiceLabel(@Nonnull String choice) {
-        if ("extra_projectile".equals(choice)) {
+    private String getPowerChoiceLabel(@Nonnull String string) {
+        if ("extra_projectile".equals(string)) {
             return "EXTRA PROJECTILE";
         }
-        if ("fire_rate".equals(choice)) {
+        if ("fire_rate".equals(string)) {
             return "FIRE RATE";
         }
-        if ("pickup_range".equals(choice)) {
+        if ("pickup_range".equals(string)) {
             return "PICKUP RANGE";
         }
-        if ("bounce".equals(choice)) {
+        if ("bounce".equals(string)) {
             return "BOUNCE";
         }
-        if ("weapon_damage".equals(choice)) {
+        if ("weapon_damage".equals(string)) {
             return "WEAPON DAMAGE";
         }
-        if ("max_health".equals(choice)) {
+        if ("max_health".equals(string)) {
             return "MORE HEALTH";
         }
-        if ("move_speed".equals(choice)) {
+        if ("move_speed".equals(string)) {
             return "MOVE SPEED";
         }
-        if ("lucky".equals(choice)) {
+        if ("lucky".equals(string)) {
             return "LUCKY";
         }
-        if ("projectile_rain".equals(choice)) {
+        if ("skip_store".equals(string)) {
+            return "SKIP";
+        }
+        if ("projectile_rain".equals(string)) {
             return "LAST RESORT...";
         }
         return null;
     }
 
-    public void restorePowerState(@Nonnull UUID playerId, @Nonnull VampireShooterComponent shooter) {
-        this.restorePowerState(playerId, shooter, null);
+    public void restorePowerState(@Nonnull UUID uUID, @Nonnull VampireShooterComponent vampireShooterComponent) {
+        this.restorePowerState(uUID, vampireShooterComponent, null);
     }
 
-    private void restorePowerState(@Nonnull UUID playerId, @Nonnull VampireShooterComponent shooter, String worldKey) {
-        PowerUpApplicator.PowerState state;
-        if (worldKey != null) {
-            this.loadStateIfMissing(playerId, worldKey);
+    private void restorePowerState(@Nonnull UUID uUID, @Nonnull VampireShooterComponent vampireShooterComponent, String string) {
+        PowerUpApplicator.PowerState powerState;
+        if (string != null) {
+            this.loadStateIfMissing(uUID, string);
         }
-        if ((state = this.playerDataRepository.getPower(playerId)) == null) {
+        if ((powerState = this.playerDataRepository.getPower(uUID)) == null) {
             return;
         }
-        this.powerUpApplicator.applyToShooter(state, shooter);
+        this.powerUpApplicator.applyToShooter(powerState, vampireShooterComponent);
     }
 
-    private void resetPowerState(@Nonnull VampireShooterComponent shooter) {
-        this.powerUpApplicator.resetShooter(shooter);
+    private void resetPowerState(@Nonnull VampireShooterComponent vampireShooterComponent) {
+        this.powerUpApplicator.resetShooter(vampireShooterComponent);
     }
 
-    private void applyPlayerPowerBonuses(@Nonnull UUID playerId, @Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRefComponent, String worldKey) {
-        PowerUpApplicator.PowerState state;
-        if (worldKey != null) {
-            this.loadStateIfMissing(playerId, worldKey);
+    private void applyPlayerPowerBonuses(@Nonnull UUID uUID, @Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull PlayerRef playerRef, String string) {
+        PowerUpApplicator.PowerState powerState;
+        if (string != null) {
+            this.loadStateIfMissing(uUID, string);
         }
-        if ((state = this.playerDataRepository.getPower(playerId)) == null) {
+        if ((powerState = this.playerDataRepository.getPower(uUID)) == null) {
             return;
         }
-        this.powerUpApplicator.applyPlayerBonuses(state, playerRef, store, playerRefComponent);
+        this.powerUpApplicator.applyPlayerBonuses(powerState, ref, store, playerRef);
     }
 
-    public double getPickupRangeBonus(@Nonnull UUID playerId) {
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public double getPickupRangeBonus(@Nonnull UUID uUID) {
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0.0;
         }
-        return Math.max(0.0, (double)state.pickupRangeBonus());
+        return Math.max(0.0, (double)powerState.pickupRangeBonus());
     }
 
-    public boolean hasFireRatePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        return state != null && this.powerUpApplicator.computeFireRateRank(state.fireRateMultiplier()) >= this.powerUpApplicator.getMaxFireRateUpgrades();
+    public boolean hasFireRatePower(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        return powerState != null && this.powerUpApplicator.computeFireRateRank(powerState.fireRateMultiplier()) >= this.powerUpApplicator.getMaxFireRateUpgrades();
     }
 
-    public int getFireRateRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getFireRateRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.computeFireRateRank(state.fireRateMultiplier());
+        return this.powerUpApplicator.computeFireRateRank(powerState.fireRateMultiplier());
     }
 
-    public boolean hasPickupRangePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        return state != null && this.powerUpApplicator.computePickupRangeRank(state.pickupRangeBonus()) >= this.powerUpApplicator.getMaxPickupRangeUpgrades();
+    public boolean hasPickupRangePower(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        return powerState != null && this.powerUpApplicator.computePickupRangeRank(powerState.pickupRangeBonus()) >= this.powerUpApplicator.getMaxPickupRangeUpgrades();
     }
 
-    public int getPickupRangeRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getPickupRangeRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.computePickupRangeRank(state.pickupRangeBonus());
+        return this.powerUpApplicator.computePickupRangeRank(powerState.pickupRangeBonus());
     }
 
-    public boolean hasExtraProjectilePower(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        return state != null && this.powerUpApplicator.clampProjectileCount(state.projectileCount()) >= this.powerUpApplicator.getMaxExtraProjectileUpgrades();
+    public boolean hasExtraProjectilePower(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        return powerState != null && this.powerUpApplicator.clampProjectileCount(powerState.projectileCount()) >= this.powerUpApplicator.getMaxExtraProjectileUpgrades();
     }
 
-    public int getExtraProjectileRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getExtraProjectileRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampProjectileCount(state.projectileCount());
+        return this.powerUpApplicator.clampProjectileCount(powerState.projectileCount());
     }
 
-    public int getBounceRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getBounceRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampBounceBonus(state.bounceBonus());
+        return this.powerUpApplicator.clampBounceBonus(powerState.bounceBonus());
     }
 
-    public int getWeaponDamageRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getWeaponDamageRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampWeaponDamageRank(state.weaponDamageRank());
+        return this.powerUpApplicator.clampWeaponDamageRank(powerState.weaponDamageRank());
     }
 
-    public float getWeaponDamageBonus(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        return this.powerUpApplicator.getWeaponDamageBonusForRank(this.getWeaponDamageRank(playerId, store));
+    public float getWeaponDamageBonus(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        return this.powerUpApplicator.getWeaponDamageBonusForRank(this.getWeaponDamageRank(uUID, store));
     }
 
-    public int getHealthRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getHealthRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampHealthRank(state.healthRank());
+        return this.powerUpApplicator.clampHealthRank(powerState.healthRank());
     }
 
-    public int getSpeedRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getSpeedRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampSpeedRank(state.speedRank());
+        return this.powerUpApplicator.clampSpeedRank(powerState.speedRank());
     }
 
-    public int getProjectileRainRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        return this.isProjectileRainUsedForActiveGroup(playerId, store) ? 1 : 0;
+    public int getProjectileRainRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        return this.isProjectileRainUsedForActiveGroup(uUID, store) ? 1 : 0;
     }
 
-    public int getLuckyRank(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        this.loadStateIfMissing(playerId, PlayerProgressionManager.getWorldKey(store));
-        PowerUpApplicator.PowerState state = this.playerDataRepository.getPower(playerId);
-        if (state == null) {
+    public int getLuckyRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
             return 0;
         }
-        return this.powerUpApplicator.clampLuckyRank(state.luckyRank());
+        return this.powerUpApplicator.clampLuckyRank(powerState.luckyRank());
+    }
+
+    public int getSkipRank(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        this.loadStateIfMissing(uUID, PlayerProgressionManager.getWorldKey(store));
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getPower(uUID);
+        if (powerState == null) {
+            return 0;
+        }
+        return Math.max(0, powerState.skipRank());
     }
 
     public int getMaxFireRateUpgrades() {
@@ -801,102 +793,80 @@ public class PlayerProgressionManager {
         return this.powerUpApplicator.getMaxLuckyUpgrades();
     }
 
-    private boolean isProjectileRainUsedForActiveGroup(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store) {
-        String worldKey = PlayerProgressionManager.getWorldKey(store);
-        this.loadStateIfMissing(playerId, worldKey);
-        PowerUpApplicator.PowerState selfState = this.playerDataRepository.getOrCreatePower(playerId);
-        if (selfState.projectileRainUsed()) {
+    private boolean isProjectileRainUsedForActiveGroup(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store) {
+        String string = PlayerProgressionManager.getWorldKey(store);
+        this.loadStateIfMissing(uUID, string);
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(uUID);
+        if (powerState.projectileRainUsed()) {
             return true;
         }
-        MobWaveSpawner spawner = HytaleMod.getInstance().getMobWaveSpawner();
-        if (spawner == null) {
+        MobWaveSpawner mobWaveSpawner = HytaleMod.getInstance().getMobWaveSpawner();
+        if (mobWaveSpawner == null) {
             return false;
         }
-        UUID ownerId = spawner.resolveOwnerId(playerId);
-        List<Ref<EntityStore>> refs = spawner.getPlayerRefsForOwner(ownerId);
-        for (Ref<EntityStore> memberRef : refs) {
-            if (memberRef == null || !memberRef.isValid()) {
-                continue;
-            }
-            Store<EntityStore> memberStore = memberRef.getStore();
-            if (memberStore == null) {
-                continue;
-            }
-            PlayerRef memberPlayerRef = (PlayerRef)memberStore.getComponent(memberRef, PlayerRef.getComponentType());
-            if (memberPlayerRef == null) {
-                continue;
-            }
-            UUID memberId = memberPlayerRef.getUuid();
-            this.loadStateIfMissing(memberId, worldKey);
-            PowerUpApplicator.PowerState memberState = this.playerDataRepository.getOrCreatePower(memberId);
-            if (!memberState.projectileRainUsed()) continue;
+        UUID uUID2 = mobWaveSpawner.resolveOwnerId(uUID);
+        List<Ref<EntityStore>> list = mobWaveSpawner.getPlayerRefsForOwner(uUID2);
+        for (Ref<EntityStore> ref : list) {
+            PlayerRef playerRef;
+            Store store2;
+            if (ref == null || !ref.isValid() || (store2 = ref.getStore()) == null || (playerRef = (PlayerRef)store2.getComponent(ref, PlayerRef.getComponentType())) == null) continue;
+            UUID uUID3 = playerRef.getUuid();
+            this.loadStateIfMissing(uUID3, string);
+            PowerUpApplicator.PowerState powerState2 = this.playerDataRepository.getOrCreatePower(uUID3);
+            if (!powerState2.projectileRainUsed()) continue;
             return true;
         }
         return false;
     }
 
-    private void markProjectileRainUsedForActiveGroup(@Nonnull UUID playerId, @Nonnull Store<EntityStore> store, @Nonnull String worldKey) {
-        this.loadStateIfMissing(playerId, worldKey);
-        PowerUpApplicator.PowerState selfState = this.playerDataRepository.getOrCreatePower(playerId);
-        if (!selfState.projectileRainUsed) {
-            selfState.projectileRainUsed = true;
+    private void markProjectileRainUsedForActiveGroup(@Nonnull UUID uUID, @Nonnull Store<EntityStore> store, @Nonnull String string) {
+        this.loadStateIfMissing(uUID, string);
+        PowerUpApplicator.PowerState powerState = this.playerDataRepository.getOrCreatePower(uUID);
+        if (!powerState.projectileRainUsed) {
+            powerState.projectileRainUsed = true;
         }
-        this.savePlayerState(playerId, worldKey);
-        MobWaveSpawner spawner = HytaleMod.getInstance().getMobWaveSpawner();
-        if (spawner == null) {
+        this.savePlayerState(uUID, string);
+        MobWaveSpawner mobWaveSpawner = HytaleMod.getInstance().getMobWaveSpawner();
+        if (mobWaveSpawner == null) {
             return;
         }
-        UUID ownerId = spawner.resolveOwnerId(playerId);
-        List<Ref<EntityStore>> refs = spawner.getPlayerRefsForOwner(ownerId);
-        for (Ref<EntityStore> memberRef : refs) {
-            if (memberRef == null || !memberRef.isValid()) {
-                continue;
-            }
-            Store<EntityStore> memberStore = memberRef.getStore();
-            if (memberStore == null) {
-                continue;
-            }
-            PlayerRef memberPlayerRef = (PlayerRef)memberStore.getComponent(memberRef, PlayerRef.getComponentType());
-            if (memberPlayerRef == null) {
-                continue;
-            }
-            UUID memberId = memberPlayerRef.getUuid();
-            if (memberId.equals(playerId)) {
-                continue;
-            }
-            this.loadStateIfMissing(memberId, worldKey);
-            PowerUpApplicator.PowerState memberState = this.playerDataRepository.getOrCreatePower(memberId);
-            if (!memberState.projectileRainUsed) {
-                memberState.projectileRainUsed = true;
-                this.savePlayerState(memberId, worldKey);
-            }
+        UUID uUID2 = mobWaveSpawner.resolveOwnerId(uUID);
+        List<Ref<EntityStore>> list = mobWaveSpawner.getPlayerRefsForOwner(uUID2);
+        for (Ref<EntityStore> ref : list) {
+            UUID uUID3;
+            PlayerRef playerRef;
+            Store store2;
+            if (ref == null || !ref.isValid() || (store2 = ref.getStore()) == null || (playerRef = (PlayerRef)store2.getComponent(ref, PlayerRef.getComponentType())) == null || (uUID3 = playerRef.getUuid()).equals(uUID)) continue;
+            this.loadStateIfMissing(uUID3, string);
+            PowerUpApplicator.PowerState powerState2 = this.playerDataRepository.getOrCreatePower(uUID3);
+            if (powerState2.projectileRainUsed) continue;
+            powerState2.projectileRainUsed = true;
+            this.savePlayerState(uUID3, string);
         }
     }
 
-    private void loadStateIfMissing(@Nonnull UUID playerId, String worldKey) {
-        this.playerDataRepository.loadStateIfMissing(playerId, worldKey);
+    private void loadStateIfMissing(@Nonnull UUID uUID, String string) {
+        this.playerDataRepository.loadStateIfMissing(uUID, string);
     }
 
-    private void savePlayerState(@Nonnull UUID playerId, @Nonnull String worldKey) {
-        this.playerDataRepository.savePlayerState(playerId, worldKey);
+    private void savePlayerState(@Nonnull UUID uUID, @Nonnull String string) {
+        this.playerDataRepository.savePlayerState(uUID, string);
     }
 
-    private void resetTransientPlayerState(@Nonnull UUID playerId) {
-        this.playerDataRepository.clearTransient(playerId);
-        this.lastWasGameplayWorld.remove(playerId);
-        this.pendingHudClear.remove(playerId);
+    private void resetTransientPlayerState(@Nonnull UUID uUID) {
+        this.playerDataRepository.clearTransient(uUID);
+        this.lastWasGameplayWorld.remove(uUID);
+        this.pendingHudClear.remove(uUID);
     }
 
-    public void resetProgressForPlayers(@Nonnull Iterable<UUID> playerIds, @Nonnull String worldKey) {
-        this.playerDataRepository.resetProgressForPlayers(playerIds, worldKey);
-        for (UUID playerId : playerIds) {
-            if (playerId == null) {
-                continue;
-            }
-            this.cancelAllScheduledTasks(playerId);
-            this.resetTransientPlayerState(playerId);
-            this.inventoryStateManager.resetPlayer(playerId);
-            this.hudUpdateService.cancelHudUpdate(playerId);
+    public void resetProgressForPlayers(@Nonnull Iterable<UUID> iterable, @Nonnull String string) {
+        this.playerDataRepository.resetProgressForPlayers(iterable, string);
+        for (UUID uUID : iterable) {
+            if (uUID == null) continue;
+            this.cancelAllScheduledTasks(uUID);
+            this.resetTransientPlayerState(uUID);
+            this.inventoryStateManager.resetPlayer(uUID);
+            this.hudUpdateService.cancelHudUpdate(uUID);
         }
     }
 
@@ -905,7 +875,6 @@ public class PlayerProgressionManager {
     }
 
     private static String getWorldKey(@Nonnull Store<EntityStore> store) {
-        String displayName;
         World world = ((EntityStore)store.getExternalData()).getWorld();
         if (world == null) {
             return "default";
@@ -913,238 +882,235 @@ public class PlayerProgressionManager {
         if (world.getWorldConfig() != null && world.getWorldConfig().getUuid() != null) {
             return "world-" + world.getWorldConfig().getUuid().toString();
         }
-        String string = displayName = world.getWorldConfig() != null ? world.getWorldConfig().getDisplayName() : null;
-        if (displayName != null && !displayName.isBlank()) {
-            return displayName.trim();
+        String string = world.getWorldConfig() != null ? world.getWorldConfig().getDisplayName() : null;
+        String string2 = string;
+        if (string != null && !string.isBlank()) {
+            return string.trim();
         }
-        String name = world.getName();
-        if (name != null && !name.isBlank()) {
-            return name.trim();
+        String string3 = world.getName();
+        if (string3 != null && !string3.isBlank()) {
+            return string3.trim();
         }
         return "default";
     }
 
-    private BossBarHud ensureHud(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull Store<EntityStore> store) {
-        return this.hudUpdateService.ensureHud(playerComponent, playerRefComponent, store, this.isGameplayWorld(store));
+    private BossBarHud ensureHud(@Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull Store<EntityStore> store) {
+        return this.hudUpdateService.ensureHud(player, playerRef, store, this.isGameplayWorld(store));
     }
 
-    private void clearHudForPlayer(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull UUID playerId) {
-        this.hudUpdateService.clearHudForPlayer(playerComponent, playerRefComponent, playerId);
+    private void clearHudForPlayer(@Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull UUID uUID) {
+        this.hudUpdateService.clearHudForPlayer(player, playerRef, uUID);
     }
 
-    private void applyJoinDefaults(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull World world) {
-        if (!playerRef.isValid()) {
+    private void applyJoinDefaults(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull World world) {
+        if (!ref.isValid()) {
             return;
         }
-        Player playerComponent = (Player)store.getComponent(playerRef, Player.getComponentType());
-        if (playerComponent != null && this.isGameplayWorld(store)) {
-            this.giveJoinWeapon(playerComponent);
+        Player player = (Player)store.getComponent(ref, Player.getComponentType());
+        if (player != null && this.isGameplayWorld(store)) {
+            this.giveJoinWeapon(player);
         }
         this.forceWeather(world, store);
     }
 
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
+    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable runnable) {
         if (!world.isTicking()) {
             return;
         }
         try {
-            world.execute(action);
+            world.execute(runnable);
         }
-        catch (IllegalThreadStateException exception) {
-            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
+        catch (IllegalThreadStateException illegalThreadStateException) {
         }
     }
 
-    private void scheduleHudUpdate(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action) {
-        this.hudUpdateService.scheduleHudUpdate(world, playerRefComponent, action);
+    private void scheduleHudUpdate(@Nonnull World world, @Nonnull PlayerRef playerRef, @Nonnull Runnable runnable) {
+        this.hudUpdateService.scheduleHudUpdate(world, playerRef, runnable);
     }
 
-    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action, long delayMillis) {
-        UUID playerId = playerRefComponent.getUuid();
-        final ScheduledFuture<?>[] holder = new ScheduledFuture<?>[1];
-        ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
-            ScheduledFuture<?> self = holder[0];
-            if (self != null) {
-                this.untrackPlayerTask(playerId, self);
+    private ScheduledFuture<?> schedulePlayerWorldTask(@Nonnull World world, @Nonnull PlayerRef playerRef, @Nonnull Runnable runnable, long l) {
+        ScheduledFuture<?>[] scheduledFutureArray = new ScheduledFuture[1];
+        UUID uUID = playerRef.getUuid();
+        ScheduledFuture<?> scheduledFuture = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+            ScheduledFuture<?> trackedFuture = scheduledFutureArray[0];
+            if (trackedFuture != null) {
+                this.untrackPlayerTask(uUID, trackedFuture);
             }
-            if (!this.isPlayerInWorld(playerRefComponent, world)) {
+            if (!this.isPlayerInWorld(playerRef, world)) {
                 return;
             }
-            this.executeIfTicking(world, action);
-        }, delayMillis, TimeUnit.MILLISECONDS);
-        holder[0] = future;
-        this.trackPlayerTask(playerId, future);
-        return future;
+            this.executeIfTicking(world, runnable);
+        }, l, TimeUnit.MILLISECONDS);
+        scheduledFutureArray[0] = scheduledFuture;
+        this.trackPlayerTask(uUID, scheduledFuture);
+        return scheduledFuture;
     }
 
-    private void cancelHudUpdate(@Nonnull UUID playerId) {
-        this.hudUpdateService.cancelHudUpdate(playerId);
+    private void cancelHudUpdate(@Nonnull UUID uUID) {
+        this.hudUpdateService.cancelHudUpdate(uUID);
     }
 
-    private void trackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        this.delayedTasksByPlayer.computeIfAbsent(playerId, id -> new ConcurrentLinkedQueue()).add(future);
+    private void trackPlayerTask(@Nonnull UUID uUID2, @Nonnull ScheduledFuture<?> scheduledFuture) {
+        this.delayedTasksByPlayer.computeIfAbsent(uUID2, uUID -> new ConcurrentLinkedQueue()).add(scheduledFuture);
     }
 
-    private void untrackPlayerTask(@Nonnull UUID playerId, @Nonnull ScheduledFuture<?> future) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = (ConcurrentLinkedQueue)this.delayedTasksByPlayer.get(playerId);
-        if (tasks == null) {
+    private void untrackPlayerTask(@Nonnull UUID uUID, @Nonnull ScheduledFuture<?> scheduledFuture) {
+        ConcurrentLinkedQueue<ScheduledFuture<?>> concurrentLinkedQueue = this.delayedTasksByPlayer.get(uUID);
+        if (concurrentLinkedQueue == null) {
             return;
         }
-        tasks.remove(future);
-        if (tasks.isEmpty()) {
-            this.delayedTasksByPlayer.remove(playerId, tasks);
+        concurrentLinkedQueue.remove(scheduledFuture);
+        if (concurrentLinkedQueue.isEmpty()) {
+            this.delayedTasksByPlayer.remove(uUID, concurrentLinkedQueue);
         }
     }
 
-    private void cancelPlayerTasks(@Nonnull UUID playerId) {
-        ConcurrentLinkedQueue<ScheduledFuture<?>> tasks = (ConcurrentLinkedQueue)this.delayedTasksByPlayer.remove(playerId);
-        if (tasks == null) {
+    private void cancelPlayerTasks(@Nonnull UUID uUID) {
+        ConcurrentLinkedQueue<ScheduledFuture<?>> concurrentLinkedQueue = this.delayedTasksByPlayer.remove(uUID);
+        if (concurrentLinkedQueue == null) {
             return;
         }
-        for (ScheduledFuture<?> task : tasks) {
-            if (task == null) {
-                continue;
-            }
-            task.cancel(false);
+        for (ScheduledFuture<?> scheduledFuture : concurrentLinkedQueue) {
+            if (scheduledFuture == null) continue;
+            scheduledFuture.cancel(false);
         }
     }
 
-    private void cancelAllScheduledTasks(@Nonnull UUID playerId) {
-        this.cancelHudUpdate(playerId);
-        this.cancelPlayerTasks(playerId);
-        this.storeSessionManager.cancelAllScheduledTasks(playerId);
+    private void cancelAllScheduledTasks(@Nonnull UUID uUID) {
+        this.cancelHudUpdate(uUID);
+        this.cancelPlayerTasks(uUID);
+        this.storeSessionManager.cancelAllScheduledTasks(uUID);
     }
 
-    private boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
-        Ref playerRef = playerRefComponent.getReference();
-        if (playerRef == null || !playerRef.isValid()) {
+    private boolean isPlayerInWorld(@Nonnull PlayerRef playerRef, @Nonnull World world) {
+        Ref ref = playerRef.getReference();
+        if (ref == null || !ref.isValid()) {
             return false;
         }
-        Store store = playerRef.getStore();
+        Store store = ref.getStore();
         if (store == null) {
             return false;
         }
-        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
-        if (currentWorld == null) {
+        World world2 = ((EntityStore)store.getExternalData()).getWorld();
+        if (world2 == null) {
             return false;
         }
-        WorldConfig currentConfig = currentWorld.getWorldConfig();
-        WorldConfig targetConfig = world.getWorldConfig();
-        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
-            return currentConfig.getUuid().equals(targetConfig.getUuid());
+        WorldConfig worldConfig = world2.getWorldConfig();
+        WorldConfig worldConfig2 = world.getWorldConfig();
+        if (worldConfig != null && worldConfig2 != null && worldConfig.getUuid() != null && worldConfig2.getUuid() != null) {
+            return worldConfig.getUuid().equals(worldConfig2.getUuid());
         }
-        String currentName = currentWorld.getName();
-        String targetName = world.getName();
-        if (currentName != null && targetName != null) {
-            return currentName.equals(targetName);
+        String string = world2.getName();
+        String string2 = world.getName();
+        if (string != null && string2 != null) {
+            return string.equals(string2);
         }
-        return currentWorld == world;
+        return world2 == world;
     }
 
-    private void switchInventoryForWorld(@Nonnull UUID playerId, String worldKey, @Nonnull Player playerComponent) {
-        this.inventoryStateManager.switchInventoryForWorld(playerId, worldKey, playerComponent);
+    private void switchInventoryForWorld(@Nonnull UUID uUID, String string, @Nonnull Player player) {
+        this.inventoryStateManager.switchInventoryForWorld(uUID, string, player);
     }
 
-    private void saveInventorySnapshot(@Nonnull UUID playerId, String worldKey, @Nonnull Player playerComponent) {
-        this.inventoryStateManager.saveInventorySnapshot(playerId, worldKey, playerComponent);
+    private void saveInventorySnapshot(@Nonnull UUID uUID, String string, @Nonnull Player player) {
+        this.inventoryStateManager.saveInventorySnapshot(uUID, string, player);
     }
 
     private void clearInventory(@Nonnull Inventory inventory) {
         this.inventoryStateManager.clearInventory(inventory);
     }
 
-    private void resetCamera(@Nonnull PlayerRef playerRefComponent) {
-        this.gamePauseController.resetCamera(playerRefComponent);
+    private void resetCamera(@Nonnull PlayerRef playerRef) {
+        this.gamePauseController.resetCamera(playerRef);
     }
 
-    private void forceTopdownCameraDirect(@Nonnull PlayerRef playerRefComponent) {
-        this.gamePauseController.forceTopdownCameraDirect(playerRefComponent);
+    private void forceTopdownCameraDirect(@Nonnull PlayerRef playerRef) {
+        this.gamePauseController.forceTopdownCameraDirect(playerRef);
     }
 
-    private void giveJoinWeapon(@Nonnull Player playerComponent) {
-        Inventory inventory = playerComponent.getInventory();
+    private void giveJoinWeapon(@Nonnull Player player) {
+        Inventory inventory = player.getInventory();
         if (inventory == null) {
             return;
         }
-        boolean changed = false;
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("battleaxe", JOIN_WEAPON_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("shortbow", JOIN_SHORTBOW_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("arrows", JOIN_ARROW_ITEM_ID), JOIN_ARROW_QUANTITY, false);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("food", JOIN_FOOD_ITEM_ID), JOIN_FOOD_QUANTITY, false);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("helmet", JOIN_ARMOR_HEAD_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("chest", JOIN_ARMOR_CHEST_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("hands", JOIN_ARMOR_HANDS_ITEM_ID), 1, true);
-        changed |= this.ensureJoinItem(inventory, this.resolveExistingItemId("legs", JOIN_ARMOR_LEGS_ITEM_ID), 1, true);
-        if (changed) {
+        boolean bl = false;
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("battleaxe", JOIN_WEAPON_ITEM_ID), 1, true);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("shortbow", JOIN_SHORTBOW_ITEM_ID), 1, true);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("arrows", JOIN_ARROW_ITEM_ID), JOIN_ARROW_QUANTITY, false);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("food", JOIN_FOOD_ITEM_ID), JOIN_FOOD_QUANTITY, false);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("helmet", JOIN_ARMOR_HEAD_ITEM_ID), 1, true);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("chest", JOIN_ARMOR_CHEST_ITEM_ID), 1, true);
+        bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("hands", JOIN_ARMOR_HANDS_ITEM_ID), 1, true);
+        if (bl |= this.ensureJoinItem(inventory, this.resolveExistingItemId("legs", JOIN_ARMOR_LEGS_ITEM_ID), 1, true)) {
             inventory.markChanged();
         }
     }
 
-    private boolean ensureJoinItem(@Nonnull Inventory inventory, String itemId, int minimumQuantity, boolean durable) {
-        if (itemId == null || minimumQuantity <= 0) {
+    private boolean ensureJoinItem(@Nonnull Inventory inventory, String string, int n, boolean bl) {
+        if (string == null || n <= 0) {
             return false;
         }
-        CombinedItemContainer allItems = inventory.getCombinedEverything();
-        int existingQuantity = this.getTotalItemQuantity(allItems, itemId);
-        if (existingQuantity >= minimumQuantity) {
+        CombinedItemContainer combinedItemContainer = inventory.getCombinedEverything();
+        int n2 = this.getTotalItemQuantity((ItemContainer)combinedItemContainer, string);
+        if (n2 >= n) {
             return false;
         }
-        int quantityToAdd = minimumQuantity - existingQuantity;
-        CombinedItemContainer target = inventory.getCombinedHotbarFirst();
-        if (target == null) {
+        int n3 = n - n2;
+        CombinedItemContainer combinedItemContainer2 = inventory.getCombinedHotbarFirst();
+        if (combinedItemContainer2 == null) {
             return false;
         }
-        target.addItemStack(this.createJoinItemStack(itemId, quantityToAdd, durable));
+        combinedItemContainer2.addItemStack(this.createJoinItemStack(string, n3, bl));
         return true;
     }
 
-    private int getTotalItemQuantity(ItemContainer container, @Nonnull String itemId) {
-        if (container == null) {
+    private int getTotalItemQuantity(ItemContainer itemContainer, @Nonnull String string) {
+        if (itemContainer == null) {
             return 0;
         }
-        int total = 0;
-        int capacity = Math.max(0, container.getCapacity());
-        for (short i = 0; i < capacity; i = (short)(i + 1)) {
-            ItemStack stack = container.getItemStack(i);
-            if (stack == null || stack.isEmpty() || !itemId.equals(stack.getItemId())) continue;
-            total += Math.max(0, stack.getQuantity());
+        int n = 0;
+        int n2 = Math.max(0, itemContainer.getCapacity());
+        for (int i = 0; i < n2; ++i) {
+            ItemStack itemStack = itemContainer.getItemStack((short)i);
+            if (itemStack == null || itemStack.isEmpty() || !string.equals(itemStack.getItemId())) continue;
+            n += Math.max(0, itemStack.getQuantity());
         }
-        return total;
+        return n;
     }
 
-    private ItemStack createJoinItemStack(@Nonnull String itemId, int quantity, boolean durable) {
-        if (durable) {
-            return new ItemStack(itemId, quantity, JOIN_DEFAULT_DURABILITY, JOIN_DEFAULT_DURABILITY, null);
+    private ItemStack createJoinItemStack(@Nonnull String string, int n, boolean bl) {
+        if (bl) {
+            return new ItemStack(string, n, (double)JOIN_DEFAULT_DURABILITY, (double)JOIN_DEFAULT_DURABILITY, null);
         }
-        return new ItemStack(itemId, quantity);
+        return new ItemStack(string, n);
     }
 
-    private String resolveExistingItemId(@Nonnull String label, String itemId) {
-        if (itemId != null && !itemId.isBlank() && Item.getAssetMap().getAsset(itemId) != null) {
-            return itemId;
+    private String resolveExistingItemId(@Nonnull String string, String string2) {
+        if (string2 != null && !string2.isBlank() && Item.getAssetMap().getAsset(string2) != null) {
+            return string2;
         }
-        this.plugin.getLogger().at(Level.WARNING).log("Join loadout item not found for %s: %s", (Object)label, (Object)itemId);
+        this.plugin.getLogger().at(Level.WARNING).log("Join loadout item not found for %s: %s", (Object)string, (Object)string2);
         return null;
     }
 
     private void forceWeather(@Nonnull World world, @Nonnull Store<EntityStore> store) {
-        WeatherResource weather = (WeatherResource)store.getResource(WeatherResource.getResourceType());
-        if (weather != null) {
-            weather.setForcedWeather(JOIN_FORCED_WEATHER_ID);
+        WeatherResource weatherResource = (WeatherResource)store.getResource(WeatherResource.getResourceType());
+        if (weatherResource != null) {
+            weatherResource.setForcedWeather(JOIN_FORCED_WEATHER_ID);
         }
     }
 
     private int getLifeEssenceDelta(@Nonnull Transaction transaction) {
         if (transaction instanceof ItemStackTransaction) {
-            ItemStackTransaction itemTransaction = (ItemStackTransaction)transaction;
-            if (!itemTransaction.succeeded()) {
+            ItemStackTransaction itemStackTransaction = (ItemStackTransaction)transaction;
+            if (!itemStackTransaction.succeeded()) {
                 return 0;
             }
-            int delta = 0;
-            for (ItemStackSlotTransaction slotTransaction : itemTransaction.getSlotTransactions()) {
-                delta += this.getDeltaFromSlot((SlotTransaction)slotTransaction);
+            int n = 0;
+            for (ItemStackSlotTransaction itemStackSlotTransaction : itemStackTransaction.getSlotTransactions()) {
+                n += this.getDeltaFromSlot((SlotTransaction)itemStackSlotTransaction);
             }
-            return delta;
+            return n;
         }
         if (transaction instanceof SlotTransaction) {
             return this.getDeltaFromSlot((SlotTransaction)transaction);
@@ -1153,33 +1119,47 @@ public class PlayerProgressionManager {
     }
 
     private int getDeltaFromSlot(@Nonnull SlotTransaction slotTransaction) {
-        ItemStack before = slotTransaction.getSlotBefore();
-        ItemStack after = slotTransaction.getSlotAfter();
-        return this.getLifeEssenceCount(after) - this.getLifeEssenceCount(before);
+        ItemStack itemStack = slotTransaction.getSlotBefore();
+        ItemStack itemStack2 = slotTransaction.getSlotAfter();
+        return this.getLifeEssenceCount(itemStack2) - this.getLifeEssenceCount(itemStack);
     }
 
-    private int getLifeEssenceCount(ItemStack stack) {
-        if (stack == null || stack.isEmpty()) {
+    private int getLifeEssenceCount(ItemStack itemStack) {
+        if (itemStack == null || itemStack.isEmpty()) {
             return 0;
         }
-        if (!ConfigManager.get().lifeEssenceItemId.equals(stack.getItemId())) {
+        if (!ConfigManager.get().lifeEssenceItemId.equals(itemStack.getItemId())) {
             return 0;
         }
-        return Math.max(0, stack.getQuantity());
+        return Math.max(0, itemStack.getQuantity());
     }
 
-    private void openStoreForPlayer(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store, @Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, int level) {
+    public void openStoreForPlayer(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store, @Nonnull Player player, @Nonnull PlayerRef playerRef, int n) {
         if (!this.isGameplayWorld(store)) {
             return;
         }
-        this.storeSessionManager.openStoreForPlayer(playerRef, store, playerComponent, playerRefComponent, level);
+        this.storeSessionManager.openStoreForPlayer(ref, store, player, playerRef, n);
     }
 
-    public void closeStoreForPlayer(@Nonnull Ref<EntityStore> playerRef, @Nonnull Store<EntityStore> store) {
-        this.storeSessionManager.closeStoreForPlayer(playerRef, store);
+    public void closeStoreForPlayer(@Nonnull Ref<EntityStore> ref, @Nonnull Store<EntityStore> store) {
+        this.storeSessionManager.closeStoreForPlayer(ref, store);
     }
 
-    public boolean canAcceptStoreSelection(@Nonnull UUID playerId) {
-        return this.storeSessionManager.canAcceptStoreSelection(playerId);
+    public boolean canAcceptStoreSelection(@Nonnull UUID uUID) {
+        return this.storeSessionManager.canAcceptStoreSelection(uUID);
+    }
+
+    private void updateHudOnPlayerReady(Player player, PlayerRef playerRef, Store store, UUID uUID, String string, LevelingSystem.LevelProgress levelProgress, Ref ref) {
+        BossBarHud bossBarHud = this.ensureHud(player, playerRef, (Store<EntityStore>)store);
+        if (bossBarHud != null) {
+            bossBarHud.updateLevel(levelProgress.level(), levelProgress.essenceProgress(), this.levelingSystem.getEssenceRequired(levelProgress));
+        } else {
+        }
+        VampireShooterComponent vampireShooterComponent = (VampireShooterComponent)store.getComponent(ref, HytaleMod.getInstance().getVampireShooterComponentType());
+        if (vampireShooterComponent != null) {
+            this.restorePowerState(uUID, vampireShooterComponent, string);
+        }
+        this.applyPlayerPowerBonuses(uUID, (Ref<EntityStore>)ref, (Store<EntityStore>)store, playerRef, string);
     }
 }
+
