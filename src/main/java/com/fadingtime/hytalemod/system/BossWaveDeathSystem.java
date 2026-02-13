@@ -26,19 +26,19 @@ extends DeathSystems.OnDeathSystem {
     }
 
     public void onComponentAdded(Ref<EntityStore> ref, DeathComponent component, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
-        BossWaveComponent bossComponent = (BossWaveComponent)commandBuffer.getComponent(ref, this.bossComponentType);
-        UUID ownerId = bossComponent != null ? bossComponent.getOwnerId() : null;
-        if (ownerId == null) {
+        var bossComponent = (BossWaveComponent)commandBuffer.getComponent(ref, this.bossComponentType);
+        if (bossComponent == null || bossComponent.getOwnerId() == null) {
             return;
         }
 
+        UUID ownerId = bossComponent.getOwnerId();
         HytaleMod mod = HytaleMod.getInstance();
         MobWaveSpawner spawner = mod.getMobWaveSpawner();
         if (spawner != null) {
             spawner.notifyBossDefeated(ownerId);
         }
 
-        BossHudSystem bossHudSystem = mod.getBossHudSystem();
+        var bossHudSystem = mod.getBossHudSystem();
         if (bossHudSystem != null) {
             bossHudSystem.clearBossHud(ownerId);
         }

@@ -1,34 +1,7 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.ArchetypeChunk
- *  com.hypixel.hytale.component.CommandBuffer
- *  com.hypixel.hytale.component.ComponentType
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.component.query.Query
- *  com.hypixel.hytale.math.shape.Box
- *  com.hypixel.hytale.math.vector.Vector3d
- *  com.hypixel.hytale.server.core.entity.UUIDComponent
- *  com.hypixel.hytale.server.core.entity.entities.Player
- *  com.hypixel.hytale.server.core.entity.entities.ProjectileComponent
- *  com.hypixel.hytale.server.core.modules.entity.component.BoundingBox
- *  com.hypixel.hytale.server.core.modules.entity.component.TransformComponent
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$ProjectileSource
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$Source
- *  com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem
- *  com.hypixel.hytale.server.core.modules.physics.SimplePhysicsProvider
- *  com.hypixel.hytale.server.core.modules.physics.component.Velocity
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
 import com.fadingtime.hytalemod.component.ProjectileBounceComponent;
-import com.fadingtime.hytalemod.helper.ProjectileHelper;
 import com.hypixel.hytale.component.ArchetypeChunk;
 import com.hypixel.hytale.component.CommandBuffer;
 import com.hypixel.hytale.component.ComponentType;
@@ -37,6 +10,7 @@ import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.math.shape.Box;
 import com.hypixel.hytale.math.vector.Vector3d;
+import com.fadingtime.hytalemod.helper.ProjectileHelper;
 import com.hypixel.hytale.server.core.entity.UUIDComponent;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.ProjectileComponent;
@@ -72,8 +46,8 @@ extends DamageEventSystem {
     @Nonnull
     private final ComponentType<EntityStore, BoundingBox> boundingBoxComponentType;
 
-    public ProjectileBounceOnHitSystem(@Nonnull ComponentType<EntityStore, ProjectileBounceComponent> componentType) {
-        this.bounceComponentType = componentType;
+    public ProjectileBounceOnHitSystem(@Nonnull ComponentType<EntityStore, ProjectileBounceComponent> bounceComponentType) {
+        this.bounceComponentType = bounceComponentType;
         this.projectileComponentType = ProjectileComponent.getComponentType();
         this.velocityComponentType = Velocity.getComponentType();
         this.transformComponentType = TransformComponent.getComponentType();
@@ -87,88 +61,88 @@ extends DamageEventSystem {
         return QUERY;
     }
 
-    public void handle(int n, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+    public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
         Damage.Source source = damage.getSource();
         if (!(source instanceof Damage.ProjectileSource)) {
             return;
         }
         Damage.ProjectileSource projectileSource = (Damage.ProjectileSource)source;
-        Ref ref = projectileSource.getProjectile();
-        if (ref == null) {
+        Ref projectileRef = projectileSource.getProjectile();
+        if (projectileRef == null) {
             return;
         }
-        ProjectileBounceComponent projectileBounceComponent = (ProjectileBounceComponent)store.getComponent(ref, this.bounceComponentType);
-        if (projectileBounceComponent == null || projectileBounceComponent.getRemainingBounces() <= 0) {
+        ProjectileBounceComponent bounceComponent = (ProjectileBounceComponent)store.getComponent(projectileRef, this.bounceComponentType);
+        if (bounceComponent == null || bounceComponent.getRemainingBounces() <= 0) {
             return;
         }
-        Ref ref2 = archetypeChunk.getReferenceTo(n);
-        if (store.getComponent(ref2, this.playerComponentType) != null) {
+        Ref targetRef = archetypeChunk.getReferenceTo(index);
+        if (store.getComponent(targetRef, this.playerComponentType) != null) {
             return;
         }
-        ProjectileComponent projectileComponent = (ProjectileComponent)store.getComponent(ref, this.projectileComponentType);
-        TransformComponent transformComponent = (TransformComponent)store.getComponent(ref, this.transformComponentType);
-        Velocity velocity = (Velocity)store.getComponent(ref, this.velocityComponentType);
-        if (projectileComponent == null || transformComponent == null || velocity == null) {
+        ProjectileComponent projectileComponent = (ProjectileComponent)store.getComponent(projectileRef, this.projectileComponentType);
+        TransformComponent projectileTransform = (TransformComponent)store.getComponent(projectileRef, this.transformComponentType);
+        Velocity velocity = (Velocity)store.getComponent(projectileRef, this.velocityComponentType);
+        if (projectileComponent == null || projectileTransform == null || velocity == null) {
             return;
         }
-        Vector3d vector3d = this.resolveProjectileVelocity(velocity, projectileComponent);
-        double d = vector3d.length();
-        if (d < 0.05) {
+        Vector3d incoming = this.resolveProjectileVelocity(velocity, projectileComponent);
+        double speed = incoming.length();
+        if (speed < 0.05) {
             return;
         }
-        Vector3d vector3d2 = this.getEntityCenter(store, (Ref<EntityStore>)ref2);
-        Vector3d vector3d3 = transformComponent.getPosition();
-        Vector3d vector3d4 = vector3d3.clone().subtract(vector3d2);
-        vector3d4.y = 0.0;
-        if (vector3d4.squaredLength() < 1.0E-6) {
-            vector3d4.assign(vector3d);
-            vector3d4.y = 0.0;
+        Vector3d targetCenter = this.getEntityCenter(store, (Ref<EntityStore>)targetRef);
+        Vector3d projectilePos = projectileTransform.getPosition();
+        Vector3d normal = projectilePos.clone().subtract(targetCenter);
+        normal.y = 0.0;
+        if (normal.squaredLength() < 1.0E-6) {
+            normal.assign(incoming);
+            normal.y = 0.0;
         }
-        if (vector3d4.squaredLength() < 1.0E-6) {
-            vector3d4.assign(0.0, 0.0, 1.0);
+        if (normal.squaredLength() < 1.0E-6) {
+            normal.assign(0.0, 0.0, 1.0);
         } else {
-            vector3d4.normalize();
+            normal.normalize();
         }
-        Vector3d vector3d5 = vector3d.clone();
-        SimplePhysicsProvider.computeReflectedVector((Vector3d)vector3d, (Vector3d)vector3d4, (Vector3d)vector3d5);
-        vector3d5.y = vector3d.y;
-        if (vector3d5.squaredLength() < 1.0E-6) {
-            vector3d5.assign(vector3d4.x, vector3d.y, vector3d4.z);
+        Vector3d reflectedDir = incoming.clone();
+        SimplePhysicsProvider.computeReflectedVector((Vector3d)incoming, (Vector3d)normal, (Vector3d)reflectedDir);
+        reflectedDir.y = incoming.y;
+        if (reflectedDir.squaredLength() < 1.0E-6) {
+            reflectedDir.assign(normal.x, incoming.y, normal.z);
         }
-        if (vector3d5.squaredLength() < 1.0E-6) {
-            vector3d5.assign(0.0, vector3d.y, 1.0);
+        if (reflectedDir.squaredLength() < 1.0E-6) {
+            reflectedDir.assign(0.0, incoming.y, 1.0);
         } else {
-            vector3d5.normalize();
+            reflectedDir.normalize();
         }
-        float f = projectileBounceComponent.getSpeedMultiplier();
-        double d2 = d * (double)(Float.isFinite(f) ? f : 1.0f);
-        if (d2 < 0.05) {
-            d2 = d;
+        float speedMultiplier = bounceComponent.getSpeedMultiplier();
+        double newSpeed = speed * (double)(Float.isFinite(speedMultiplier) ? speedMultiplier : 1.0f);
+        if (newSpeed < 0.05) {
+            newSpeed = speed;
         }
-        Vector3d vector3d6 = vector3d5.clone().scale(d2);
-        double d3 = this.getEntityRadius(store, (Ref<EntityStore>)ref2);
-        double d4 = this.getProjectileRadius(projectileComponent);
-        double d5 = Math.max(0.15, d3 + d4 + 0.15);
-        Vector3d vector3d7 = vector3d2.clone().addScaled(vector3d5, d5);
-        vector3d7.y += 0.5;
-        ProjectileHelper.fireProjectileWithVelocityAndBounce((Ref<EntityStore>)projectileSource.getRef(), commandBuffer, this.uuidComponentType, vector3d7, vector3d6, projectileComponent.getProjectileAssetName(), this.bounceComponentType, Math.max(0, projectileBounceComponent.getRemainingBounces() - 1), f, HytaleMod.LOGGER);
-        projectileBounceComponent.setRemainingBounces(0);
+        Vector3d bounceVelocity = reflectedDir.clone().scale(newSpeed);
+        double targetRadius = this.getEntityRadius(store, (Ref<EntityStore>)targetRef);
+        double projectileRadius = this.getProjectileRadius(projectileComponent);
+        double spawnDistance = Math.max(0.15, targetRadius + projectileRadius + 0.15);
+        Vector3d spawnPos = targetCenter.clone().addScaled(reflectedDir, spawnDistance);
+        spawnPos.y += 0.5;
+        ProjectileHelper.fireProjectileWithVelocityAndBounce((Ref<EntityStore>)projectileSource.getRef(), commandBuffer, this.uuidComponentType, spawnPos, bounceVelocity, projectileComponent.getProjectileAssetName(), this.bounceComponentType, Math.max(0, bounceComponent.getRemainingBounces() - 1), speedMultiplier, HytaleMod.LOGGER);
+        bounceComponent.setRemainingBounces(0);
     }
 
     @Nonnull
     private Vector3d getEntityCenter(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
-        TransformComponent transformComponent = (TransformComponent)store.getComponent(ref, this.transformComponentType);
-        if (transformComponent == null) {
+        TransformComponent transform = (TransformComponent)store.getComponent(ref, this.transformComponentType);
+        if (transform == null) {
             return Vector3d.ZERO;
         }
         BoundingBox boundingBox = (BoundingBox)store.getComponent(ref, this.boundingBoxComponentType);
         if (boundingBox == null) {
-            return transformComponent.getPosition();
+            return transform.getPosition();
         }
         Box box = boundingBox.getBoundingBox();
-        Vector3d vector3d = transformComponent.getPosition().clone();
-        vector3d.add((box.min.x + box.max.x) * 0.5, (box.min.y + box.max.y) * 0.5, (box.min.z + box.max.z) * 0.5);
-        return vector3d;
+        Vector3d center = transform.getPosition().clone();
+        center.add((box.min.x + box.max.x) * 0.5, (box.min.y + box.max.y) * 0.5, (box.min.z + box.max.z) * 0.5);
+        return center;
     }
 
     private double getEntityRadius(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> ref) {
@@ -177,14 +151,14 @@ extends DamageEventSystem {
             return 0.5;
         }
         Box box = boundingBox.getBoundingBox();
-        double d = 0.0;
-        d = Math.max(d, Math.abs(box.min.x));
-        d = Math.max(d, Math.abs(box.max.x));
-        d = Math.max(d, Math.abs(box.min.y));
-        d = Math.max(d, Math.abs(box.max.y));
-        d = Math.max(d, Math.abs(box.min.z));
-        d = Math.max(d, Math.abs(box.max.z));
-        return Math.max(0.25, d);
+        double maxExtent = 0.0;
+        maxExtent = Math.max(maxExtent, Math.abs(box.min.x));
+        maxExtent = Math.max(maxExtent, Math.abs(box.max.x));
+        maxExtent = Math.max(maxExtent, Math.abs(box.min.y));
+        maxExtent = Math.max(maxExtent, Math.abs(box.max.y));
+        maxExtent = Math.max(maxExtent, Math.abs(box.min.z));
+        maxExtent = Math.max(maxExtent, Math.abs(box.max.z));
+        return Math.max(0.25, maxExtent);
     }
 
     private double getProjectileRadius(@Nonnull ProjectileComponent projectileComponent) {
@@ -196,11 +170,11 @@ extends DamageEventSystem {
 
     @Nonnull
     private Vector3d resolveProjectileVelocity(@Nonnull Velocity velocity, @Nonnull ProjectileComponent projectileComponent) {
-        Vector3d vector3d = velocity.getVelocity().clone();
-        if (vector3d.squaredLength() < 1.0E-6) {
-            vector3d.assign(projectileComponent.getSimplePhysicsProvider().getVelocity());
+        Vector3d incoming = velocity.getVelocity().clone();
+        if (incoming.squaredLength() < 1.0E-6) {
+            incoming.assign(projectileComponent.getSimplePhysicsProvider().getVelocity());
         }
-        return vector3d;
+        return incoming;
     }
-}
 
+}

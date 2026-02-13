@@ -1,12 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.Component
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.component;
 
 import com.hypixel.hytale.component.Component;
@@ -37,16 +28,16 @@ implements Component<EntityStore> {
         return this.mobSpawnTimer;
     }
 
-    public void setMobSpawnTimer(float f) {
-        this.mobSpawnTimer = f;
+    public void setMobSpawnTimer(float mobSpawnTimer) {
+        this.mobSpawnTimer = mobSpawnTimer;
     }
 
     public float getNextSpawnDelay() {
         return this.nextSpawnDelay;
     }
 
-    public void setNextSpawnDelay(float f) {
-        this.nextSpawnDelay = f;
+    public void setNextSpawnDelay(float nextSpawnDelay) {
+        this.nextSpawnDelay = nextSpawnDelay;
     }
 
     public List<Ref<EntityStore>> getSpawnedMobs() {
@@ -57,59 +48,59 @@ implements Component<EntityStore> {
         return this.projectileCount;
     }
 
-    public void setProjectileCount(int n) {
-        this.projectileCount = Math.max(0, n);
+    public void setProjectileCount(int projectileCount) {
+        this.projectileCount = Math.max(0, projectileCount);
     }
 
-    public void addProjectiles(int n) {
-        if (n <= 0) {
+    public void addProjectiles(int amount) {
+        if (amount <= 0) {
             return;
         }
-        this.projectileCount = Math.max(0, this.projectileCount + n);
+        this.projectileCount = Math.max(0, this.projectileCount + amount);
     }
 
     public float getFireRateMultiplier() {
         return this.fireRateMultiplier;
     }
 
-    public void setFireRateMultiplier(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f) {
+    public void setFireRateMultiplier(float fireRateMultiplier) {
+        if (!Float.isFinite(fireRateMultiplier) || fireRateMultiplier <= 0.0f) {
             return;
         }
-        this.fireRateMultiplier = Math.max(0.1f, f);
+        this.fireRateMultiplier = Math.max(0.1f, fireRateMultiplier);
     }
 
-    public void addFireRatePercent(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f) {
+    public void addFireRatePercent(float percent) {
+        if (!Float.isFinite(percent) || percent <= 0.0f) {
             return;
         }
-        this.fireRateMultiplier = Math.max(0.1f, this.fireRateMultiplier * (1.0f + f / 100.0f));
+        this.fireRateMultiplier = Math.max(0.1f, this.fireRateMultiplier * (1.0f + percent / 100.0f));
     }
 
     public float getPickupRangeBonus() {
         return this.pickupRangeBonus;
     }
 
-    public void setPickupRangeBonus(float f) {
-        if (!Float.isFinite(f) || f < 0.0f) {
+    public void setPickupRangeBonus(float amount) {
+        if (!Float.isFinite(amount) || amount < 0.0f) {
             return;
         }
-        this.pickupRangeBonus = f;
+        this.pickupRangeBonus = amount;
     }
 
-    public void addPickupRangeBonus(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f) {
+    public void addPickupRangeBonus(float amount) {
+        if (!Float.isFinite(amount) || amount <= 0.0f) {
             return;
         }
-        this.pickupRangeBonus += f;
+        this.pickupRangeBonus += amount;
     }
 
     public int getBounceBonus() {
         return this.bounceBonus;
     }
 
-    public void setBounceBonus(int n) {
-        this.bounceBonus = Math.max(0, n);
+    public void setBounceBonus(int bounceBonus) {
+        this.bounceBonus = Math.max(0, bounceBonus);
     }
 
     public void queueProjectileRain() {
@@ -128,27 +119,27 @@ implements Component<EntityStore> {
         return this.projectileRainCooldown;
     }
 
-    public void setProjectileRainCooldown(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f) {
+    public void setProjectileRainCooldown(float projectileRainCooldown) {
+        if (!Float.isFinite(projectileRainCooldown) || projectileRainCooldown <= 0.0f) {
             this.projectileRainCooldown = 0.0f;
             return;
         }
-        this.projectileRainCooldown = f;
+        this.projectileRainCooldown = projectileRainCooldown;
     }
 
-    public void tickProjectileRainCooldown(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f || this.projectileRainCooldown <= 0.0f) {
+    public void tickProjectileRainCooldown(float dt) {
+        if (!Float.isFinite(dt) || dt <= 0.0f || this.projectileRainCooldown <= 0.0f) {
             return;
         }
-        this.projectileRainCooldown = Math.max(0.0f, this.projectileRainCooldown - f);
+        this.projectileRainCooldown = Math.max(0.0f, this.projectileRainCooldown - dt);
     }
 
-    public void setTimer(float f) {
-        this.timer = f;
+    public void setTimer(float timer) {
+        this.timer = timer;
     }
 
-    public void incrementTimer(float f) {
-        this.timer += f;
+    public void incrementTimer(float dt) {
+        this.timer += dt;
     }
 
     public void resetTimer() {
@@ -157,18 +148,17 @@ implements Component<EntityStore> {
 
     @Nonnull
     public Component<EntityStore> clone() {
-        VampireShooterComponent vampireShooterComponent = new VampireShooterComponent();
-        vampireShooterComponent.timer = this.timer;
-        vampireShooterComponent.mobSpawnTimer = this.mobSpawnTimer;
-        vampireShooterComponent.nextSpawnDelay = this.nextSpawnDelay;
-        vampireShooterComponent.spawnedMobs.addAll(this.spawnedMobs);
-        vampireShooterComponent.projectileCount = this.projectileCount;
-        vampireShooterComponent.fireRateMultiplier = this.fireRateMultiplier;
-        vampireShooterComponent.pickupRangeBonus = this.pickupRangeBonus;
-        vampireShooterComponent.bounceBonus = this.bounceBonus;
-        vampireShooterComponent.projectileRainCharges = this.projectileRainCharges;
-        vampireShooterComponent.projectileRainCooldown = this.projectileRainCooldown;
-        return vampireShooterComponent;
+        VampireShooterComponent copy = new VampireShooterComponent();
+        copy.timer = this.timer;
+        copy.mobSpawnTimer = this.mobSpawnTimer;
+        copy.nextSpawnDelay = this.nextSpawnDelay;
+        copy.spawnedMobs.addAll(this.spawnedMobs);
+        copy.projectileCount = this.projectileCount;
+        copy.fireRateMultiplier = this.fireRateMultiplier;
+        copy.pickupRangeBonus = this.pickupRangeBonus;
+        copy.bounceBonus = this.bounceBonus;
+        copy.projectileRainCharges = this.projectileRainCharges;
+        copy.projectileRainCooldown = this.projectileRainCooldown;
+        return copy;
     }
 }
-

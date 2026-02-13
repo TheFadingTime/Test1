@@ -16,8 +16,10 @@ import com.hypixel.hytale.server.core.modules.entity.damage.DeathComponent;
 import com.hypixel.hytale.server.core.modules.entitystats.EntityStatMap;
 import com.hypixel.hytale.server.core.modules.entitystats.asset.DefaultEntityStatTypes;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
+import com.hypixel.hytale.server.core.universe.world.World;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
 import com.hypixel.hytale.server.npc.entities.NPCEntity;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -59,10 +61,10 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
     }
 
     public void tick(float dt, int index, ArchetypeChunk<EntityStore> archetypeChunk, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
-        var world = store.getExternalData().getWorld();
+        World world = store.getExternalData().getWorld();
         if (world == null || !world.isTicking()) return;
 
-        var boss = (BossWaveComponent)archetypeChunk.getComponent(index, this.bossComponentType);
+        BossWaveComponent boss = (BossWaveComponent)archetypeChunk.getComponent(index, this.bossComponentType);
         if (boss == null || boss.getOwnerId() == null) return;
 
         var ownerId = this.mobWaveSpawner.resolveOwnerId(boss.getOwnerId());
@@ -152,15 +154,15 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
 
     public void hideBossHud(UUID ownerOrPlayerId) {
         if (this.mobWaveSpawner.isTrackedPlayer(ownerOrPlayerId)) {
-            var playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
+            Ref<EntityStore> playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
             if (playerRef != null) {
                 this.hideBossHudForPlayer(playerRef);
             }
             return;
         }
 
-        var ownerId = this.mobWaveSpawner.resolveOwnerId(ownerOrPlayerId);
-        for (var playerRef : this.mobWaveSpawner.getPlayerRefsForOwner(ownerId)) {
+        UUID ownerId = this.mobWaveSpawner.resolveOwnerId(ownerOrPlayerId);
+        for (Ref<EntityStore> playerRef : this.mobWaveSpawner.getPlayerRefsForOwner(ownerId)) {
             this.hideBossHudForPlayer(playerRef);
         }
     }
@@ -183,7 +185,7 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
 
     public void clearBossHud(UUID ownerOrPlayerId) {
         if (this.mobWaveSpawner.isTrackedPlayer(ownerOrPlayerId)) {
-            var playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
+            Ref<EntityStore> playerRef = this.mobWaveSpawner.getPlayerRef(ownerOrPlayerId);
             if (playerRef != null) {
                 this.clearBossHudForPlayer(playerRef);
             } else {
@@ -192,8 +194,8 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
             return;
         }
 
-        var ownerId = this.mobWaveSpawner.resolveOwnerId(ownerOrPlayerId);
-        var playerRefs = this.mobWaveSpawner.getPlayerRefsForOwner(ownerId);
+        UUID ownerId = this.mobWaveSpawner.resolveOwnerId(ownerOrPlayerId);
+        List<Ref<EntityStore>> playerRefs = this.mobWaveSpawner.getPlayerRefsForOwner(ownerId);
         if (playerRefs.isEmpty()) {
             for (var entry : this.hudByPlayer.entrySet()) {
                 var state = entry.getValue();

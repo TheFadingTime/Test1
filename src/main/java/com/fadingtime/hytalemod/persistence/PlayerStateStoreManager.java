@@ -1,19 +1,12 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package com.fadingtime.hytalemod.persistence;
 
 import com.fadingtime.hytalemod.persistence.PlayerStateStore;
 import java.io.IOException;
-import java.nio.file.CopyOption;
 import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.FileAttribute;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -28,91 +21,93 @@ public final class PlayerStateStoreManager {
     private final Path baseDir;
     private final ConcurrentMap<String, PlayerStateStore> stores = new ConcurrentHashMap<String, PlayerStateStore>();
 
-    public PlayerStateStoreManager(Path path) {
-        Path path2;
-        Path path3;
-        Path path4 = path.getParent();
-        Path path5 = path3 = path4 != null ? path4 : path.toAbsolutePath().getParent();
-        if (path3 == null) {
-            path3 = Path.of(".", new String[0]);
+    public PlayerStateStoreManager(Path pluginFilePath) {
+        Path pluginDir = pluginFilePath.getParent();
+        Path baseCandidate = pluginDir != null ? pluginDir : pluginFilePath.toAbsolutePath().getParent();
+        if (baseCandidate == null) {
+            baseCandidate = Path.of(".");
         }
-        this.baseDir = (path2 = path3.getParent()) != null ? path2.resolve(MOD_DATA_ROOT_DIR).resolve(MOD_DATA_DIR).resolve(WORLDS_DIR) : path3.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR);
-        Path path6 = path4 != null ? path4.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR) : null;
-        Path path7 = path2 != null ? path2.resolve(MOD_DATA_ROOT_DIR).resolve(LEGACY_MOD_DATA_DIR).resolve(WORLDS_DIR) : null;
-        PlayerStateStoreManager.migrateLegacyData(path6, this.baseDir);
-        PlayerStateStoreManager.migrateLegacyData(path7, this.baseDir);
+        Path userDataDir = baseCandidate.getParent();
+        this.baseDir = userDataDir != null
+            ? userDataDir.resolve(MOD_DATA_ROOT_DIR).resolve(MOD_DATA_DIR).resolve(WORLDS_DIR)
+            : baseCandidate.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR);
+        Path legacyPluginWorldDir = pluginDir != null ? pluginDir.resolve(LEGACY_DATA_DIR).resolve(WORLDS_DIR) : null;
+        Path legacyModDataWorldDir = userDataDir != null
+            ? userDataDir.resolve(MOD_DATA_ROOT_DIR).resolve(LEGACY_MOD_DATA_DIR).resolve(WORLDS_DIR)
+            : null;
+        PlayerStateStoreManager.migrateLegacyData(legacyPluginWorldDir, this.baseDir);
+        PlayerStateStoreManager.migrateLegacyData(legacyModDataWorldDir, this.baseDir);
     }
 
-    public PlayerStateStore getStore(String string2) {
-        String string3 = PlayerStateStoreManager.sanitize(string2);
-        return this.stores.computeIfAbsent(string3, string -> new PlayerStateStore(this.baseDir.resolve((String)string).resolve("player_state.properties")));
+    public PlayerStateStore getStore(String worldName) {
+        String safe = PlayerStateStoreManager.sanitize(worldName);
+        return this.stores.computeIfAbsent(safe, name -> new PlayerStateStore(this.baseDir.resolve((String)name).resolve("player_state.properties")));
     }
 
-    public void resetPlayerEverywhere(UUID uUID) {
-        this.stores.values().forEach(playerStateStore -> {
-            playerStateStore.saveLevel(uUID, 1, 0, 0);
-            playerStateStore.savePower(uUID, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, 0, false);
+    public void resetPlayerEverywhere(UUID playerId) {
+        this.stores.values().forEach(store -> {
+            store.saveLevel(playerId, 1, 0, 0);
+            store.savePower(playerId, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, false);
         });
-        if (!Files.isDirectory(this.baseDir, new LinkOption[0])) {
+        if (!Files.isDirectory(this.baseDir)) {
             return;
         }
-        try (Stream<Path> stream = Files.list(this.baseDir);){
-            stream.filter(path -> Files.isDirectory(path, new LinkOption[0])).forEach(path -> {
-                String string = path.getFileName().toString();
-                PlayerStateStore playerStateStore = this.getStore(string);
-                playerStateStore.saveLevel(uUID, 1, 0, 0);
-                playerStateStore.savePower(uUID, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, 0, false);
+        try (Stream<Path> worlds = Files.list(this.baseDir);){
+            worlds.filter(Files::isDirectory).forEach(worldDir -> {
+                String worldKey = worldDir.getFileName().toString();
+                PlayerStateStore store = this.getStore(worldKey);
+                store.saveLevel(playerId, 1, 0, 0);
+                store.savePower(playerId, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, false);
             });
         }
         catch (IOException iOException) {
-            // empty catch block
+            // Ignore reset sweep errors; normal world-key reset path still applies.
         }
     }
 
-    private static String sanitize(String string) {
-        if (string == null || string.isBlank()) {
+    private static String sanitize(String worldName) {
+        if (worldName == null || worldName.isBlank()) {
             return "default";
         }
-        String string2 = string.trim();
-        String string3 = string2.replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (string3.isBlank()) {
+        String trimmed = worldName.trim();
+        String safe = trimmed.replaceAll("[^a-zA-Z0-9._-]", "_");
+        if (safe.isBlank()) {
             return "default";
         }
-        return string3;
+        return safe;
     }
 
-    private static void migrateLegacyData(final Path path, final Path path2) {
-        if (path == null || path2 == null) {
+    private static void migrateLegacyData(Path legacyBaseDir, Path targetBaseDir) {
+        if (legacyBaseDir == null || targetBaseDir == null) {
             return;
         }
-        if (path.equals(path2) || !Files.isDirectory(path, new LinkOption[0])) {
+        if (legacyBaseDir.equals(targetBaseDir) || !Files.isDirectory(legacyBaseDir)) {
             return;
         }
         try {
-            Files.createDirectories(path2, new FileAttribute[0]);
-            Files.walkFileTree(path, (FileVisitor<? super Path>)new SimpleFileVisitor<Path>(){
+            Files.createDirectories(targetBaseDir);
+            Files.walkFileTree(legacyBaseDir, new SimpleFileVisitor<Path>(){
 
                 @Override
-                public FileVisitResult preVisitDirectory(Path path3, BasicFileAttributes basicFileAttributes) throws IOException {
-                    Path path22 = path.relativize(path3);
-                    Files.createDirectories(path2.resolve(path22), new FileAttribute[0]);
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    Path relative = legacyBaseDir.relativize(dir);
+                    Files.createDirectories(targetBaseDir.resolve(relative));
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
-                public FileVisitResult visitFile(Path path4, BasicFileAttributes basicFileAttributes) throws IOException {
-                    Path path22 = path.relativize(path4);
-                    Path path3 = path2.resolve(path22);
-                    if (!Files.exists(path3, new LinkOption[0])) {
-                        Files.copy(path4, path3, new CopyOption[0]);
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Path relative = legacyBaseDir.relativize(file);
+                    Path targetFile = targetBaseDir.resolve(relative);
+                    if (!Files.exists(targetFile)) {
+                        Files.copy(file, targetFile);
                     }
                     return FileVisitResult.CONTINUE;
                 }
             });
         }
         catch (IOException iOException) {
-            // empty catch block
+            // Ignore migration errors; runtime persistence will still use the new location.
         }
     }
 }
-

@@ -1,28 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.ArchetypeChunk
- *  com.hypixel.hytale.component.CommandBuffer
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.component.dependency.Dependency
- *  com.hypixel.hytale.component.dependency.Order
- *  com.hypixel.hytale.component.dependency.SystemDependency
- *  com.hypixel.hytale.component.dependency.SystemGroupDependency
- *  com.hypixel.hytale.component.query.Query
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$EntitySource
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$ProjectileSource
- *  com.hypixel.hytale.server.core.modules.entity.damage.Damage$Source
- *  com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems$SequenceModifier
- *  com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem
- *  com.hypixel.hytale.server.core.modules.entity.damage.DamageModule
- *  com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems$ApplyDamage
- *  com.hypixel.hytale.server.core.universe.PlayerRef
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -37,8 +12,8 @@ import com.hypixel.hytale.component.dependency.SystemGroupDependency;
 import com.hypixel.hytale.component.query.Query;
 import com.hypixel.hytale.server.core.modules.entity.damage.Damage;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageCalculatorSystems;
-import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageModule;
+import com.hypixel.hytale.server.core.modules.entity.damage.DamageEventSystem;
 import com.hypixel.hytale.server.core.modules.entity.damage.DamageSystems;
 import com.hypixel.hytale.server.core.universe.PlayerRef;
 import com.hypixel.hytale.server.core.universe.world.storage.EntityStore;
@@ -61,25 +36,25 @@ extends DamageEventSystem {
         return this.dependencies;
     }
 
-    public void handle(int n, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
-        Ref<EntityStore> ref = this.resolveSourceRef(damage);
-        if (ref == null) {
+    public void handle(int index, @Nonnull ArchetypeChunk<EntityStore> archetypeChunk, @Nonnull Store<EntityStore> store, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull Damage damage) {
+        Ref<EntityStore> attackerRef = this.resolveSourceRef(damage);
+        if (attackerRef == null) {
             return;
         }
-        PlayerRef playerRef = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
-        if (playerRef == null) {
+        PlayerRef playerRefComponent = (PlayerRef)store.getComponent(attackerRef, PlayerRef.getComponentType());
+        if (playerRefComponent == null) {
             return;
         }
-        HytaleMod hytaleMod = HytaleMod.getInstance();
-        if (hytaleMod == null || hytaleMod.getLifeEssenceLevelSystem() == null) {
+        HytaleMod mod = HytaleMod.getInstance();
+        if (mod == null || mod.getLifeEssenceLevelSystem() == null) {
             return;
         }
-        UUID uUID = playerRef.getUuid();
-        float f = hytaleMod.getLifeEssenceLevelSystem().getWeaponDamageBonus(uUID, store);
-        if (f <= 0.0f) {
+        UUID playerId = playerRefComponent.getUuid();
+        float bonus = mod.getLifeEssenceLevelSystem().getWeaponDamageBonus(playerId, store);
+        if (bonus <= 0.0f) {
             return;
         }
-        damage.setAmount(Math.max(0.0f, damage.getAmount() + f));
+        damage.setAmount(Math.max(0.0f, damage.getAmount() + bonus));
     }
 
     private Ref<EntityStore> resolveSourceRef(@Nonnull Damage damage) {
@@ -93,4 +68,3 @@ extends DamageEventSystem {
         return null;
     }
 }
-

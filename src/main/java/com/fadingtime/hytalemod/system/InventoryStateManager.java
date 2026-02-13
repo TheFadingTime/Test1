@@ -1,14 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.server.core.entity.entities.Player
- *  com.hypixel.hytale.server.core.inventory.Inventory
- *  com.hypixel.hytale.server.core.inventory.ItemStack
- *  com.hypixel.hytale.server.core.inventory.container.ItemContainer
- *  javax.annotation.Nonnull
- *  org.bson.BsonDocument
- */
 package com.fadingtime.hytalemod.system;
 
 import com.hypixel.hytale.server.core.entity.entities.Player;
@@ -22,55 +11,61 @@ import javax.annotation.Nonnull;
 import org.bson.BsonDocument;
 
 public final class InventoryStateManager {
-    private final ConcurrentMap<UUID, ConcurrentMap<String, InventorySnapshot>> inventoriesByPlayer = new ConcurrentHashMap<UUID, ConcurrentMap<String, InventorySnapshot>>();
-    private final ConcurrentMap<UUID, String> inventoryWorldByPlayer = new ConcurrentHashMap<UUID, String>();
+    private final ConcurrentMap<UUID, ConcurrentMap<String, InventorySnapshot>> inventoriesByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, String> inventoryWorldByPlayer = new ConcurrentHashMap<>();
 
-    public void switchInventoryForWorld(@Nonnull UUID uUID2, String string, @Nonnull Player player) {
-        ConcurrentMap concurrentMap;
-        InventorySnapshot inventorySnapshot;
-        String string2;
-        Inventory inventory = player.getInventory();
+    public void switchInventoryForWorld(@Nonnull UUID playerId, String worldKey, @Nonnull Player playerComponent) {
+        Inventory inventory = playerComponent.getInventory();
         if (inventory == null) {
             return;
         }
-        if (string == null) {
-            string = "default";
+        if (worldKey == null) {
+            worldKey = "default";
         }
-        if (string.equals(string2 = (String)this.inventoryWorldByPlayer.get(uUID2))) {
+
+        String previousWorld = this.inventoryWorldByPlayer.get(playerId);
+        if (worldKey.equals(previousWorld)) {
             return;
         }
-        if (string2 != null) {
-            this.saveInventorySnapshot(uUID2, string2, player);
+
+        if (previousWorld != null) {
+            saveInventorySnapshot(playerId, previousWorld, playerComponent);
         }
-        if ((inventorySnapshot = (InventorySnapshot)(concurrentMap = this.inventoriesByPlayer.computeIfAbsent(uUID2, uUID -> new ConcurrentHashMap())).get(string)) != null) {
-            inventorySnapshot.restore(inventory);
-            this.inventoryWorldByPlayer.put(uUID2, string);
+
+        ConcurrentMap<String, InventorySnapshot> perPlayer = this.inventoriesByPlayer.computeIfAbsent(playerId, id -> new ConcurrentHashMap<>());
+        InventorySnapshot snapshot = perPlayer.get(worldKey);
+        if (snapshot != null) {
+            snapshot.restore(inventory);
+            this.inventoryWorldByPlayer.put(playerId, worldKey);
             return;
         }
-        if (string2 == null) {
-            this.saveInventorySnapshot(uUID2, string, player);
-            this.inventoryWorldByPlayer.put(uUID2, string);
+
+        if (previousWorld == null) {
+            saveInventorySnapshot(playerId, worldKey, playerComponent);
+            this.inventoryWorldByPlayer.put(playerId, worldKey);
             return;
         }
-        this.clearInventory(inventory);
-        this.saveInventorySnapshot(uUID2, string, player);
-        this.inventoryWorldByPlayer.put(uUID2, string);
+
+        clearInventory(inventory);
+        saveInventorySnapshot(playerId, worldKey, playerComponent);
+        this.inventoryWorldByPlayer.put(playerId, worldKey);
     }
 
-    public void saveInventorySnapshot(@Nonnull UUID uUID2, String string, @Nonnull Player player) {
-        Inventory inventory = player.getInventory();
+    public void saveInventorySnapshot(@Nonnull UUID playerId, String worldKey, @Nonnull Player playerComponent) {
+        Inventory inventory = playerComponent.getInventory();
         if (inventory == null) {
             return;
         }
-        if (string == null) {
-            string = (String)this.inventoryWorldByPlayer.get(uUID2);
+        if (worldKey == null) {
+            worldKey = this.inventoryWorldByPlayer.get(playerId);
         }
-        if (string == null) {
-            string = "default";
+        if (worldKey == null) {
+            worldKey = "default";
         }
-        InventorySnapshot inventorySnapshot = InventorySnapshot.capture(inventory);
-        ConcurrentMap concurrentMap = this.inventoriesByPlayer.computeIfAbsent(uUID2, uUID -> new ConcurrentHashMap());
-        concurrentMap.put(string, inventorySnapshot);
+
+        InventorySnapshot snapshot = InventorySnapshot.capture(inventory);
+        ConcurrentMap<String, InventorySnapshot> perPlayer = this.inventoriesByPlayer.computeIfAbsent(playerId, id -> new ConcurrentHashMap<>());
+        perPlayer.put(worldKey, snapshot);
     }
 
     public void clearInventory(@Nonnull Inventory inventory) {
@@ -78,43 +73,47 @@ public final class InventoryStateManager {
         inventory.markChanged();
     }
 
-    public void resetPlayer(@Nonnull UUID uUID) {
-        this.inventoryWorldByPlayer.remove(uUID);
-        this.inventoriesByPlayer.remove(uUID);
+    public void resetPlayer(@Nonnull UUID playerId) {
+        this.inventoryWorldByPlayer.remove(playerId);
+        this.inventoriesByPlayer.remove(playerId);
     }
 
-    private static ItemStack cloneItemStack(@Nonnull ItemStack itemStack) {
-        if (itemStack.isEmpty()) {
+    private static ItemStack cloneItemStack(@Nonnull ItemStack stack) {
+        if (stack.isEmpty()) {
             return ItemStack.EMPTY;
         }
-        BsonDocument bsonDocument = itemStack.getMetadata();
-        BsonDocument bsonDocument2 = bsonDocument == null ? null : bsonDocument.clone();
-        return new ItemStack(itemStack.getItemId(), itemStack.getQuantity(), itemStack.getDurability(), itemStack.getMaxDurability(), bsonDocument2);
+        BsonDocument metadata = stack.getMetadata();
+        BsonDocument cloned = metadata == null ? null : metadata.clone();
+        return new ItemStack(stack.getItemId(), stack.getQuantity(), stack.getDurability(), stack.getMaxDurability(), cloned);
     }
 
-    private static ItemStack[] snapshotContainer(@Nonnull ItemContainer itemContainer) {
-        int n = Math.max(0, itemContainer.getCapacity());
-        ItemStack[] itemStackArray = new ItemStack[n];
-        for (int i = 0; i < n; ++i) {
-            ItemStack itemStack = itemContainer.getItemStack((short)i);
-            itemStackArray[i] = itemStack == null || itemStack.isEmpty() ? ItemStack.EMPTY : InventoryStateManager.cloneItemStack(itemStack);
+    private static ItemStack[] snapshotContainer(@Nonnull ItemContainer container) {
+        int capacity = Math.max(0, container.getCapacity());
+        ItemStack[] items = new ItemStack[capacity];
+        for (short i = 0; i < capacity; i = (short)(i + 1)) {
+            ItemStack stack = container.getItemStack(i);
+            if (stack == null || stack.isEmpty()) {
+                items[i] = ItemStack.EMPTY;
+            } else {
+                items[i] = cloneItemStack(stack);
+            }
         }
-        return itemStackArray;
+        return items;
     }
 
-    private static void restoreContainer(@Nonnull ItemContainer itemContainer, ItemStack[] itemStackArray) {
-        itemContainer.clear();
-        if (itemStackArray == null || itemStackArray.length == 0) {
+    private static void restoreContainer(@Nonnull ItemContainer container, ItemStack[] items) {
+        container.clear();
+        if (items == null || items.length == 0) {
             return;
         }
-        int n = Math.min(itemContainer.getCapacity(), itemStackArray.length);
-        for (int i = 0; i < n; ++i) {
-            ItemStack itemStack = itemStackArray[i];
-            if (itemStack == null || itemStack.isEmpty()) {
-                itemContainer.setItemStackForSlot((short)i, ItemStack.EMPTY);
-                continue;
+        int limit = Math.min(container.getCapacity(), items.length);
+        for (short i = 0; i < limit; i = (short)(i + 1)) {
+            ItemStack stack = items[i];
+            if (stack == null || stack.isEmpty()) {
+                container.setItemStackForSlot(i, ItemStack.EMPTY);
+            } else {
+                container.setItemStackForSlot(i, stack);
             }
-            itemContainer.setItemStackForSlot((short)i, itemStack);
         }
     }
 
@@ -126,49 +125,57 @@ public final class InventoryStateManager {
         private final ItemStack[] tools;
         private final ItemStack[] backpack;
 
-        private InventorySnapshot(ItemStack[] itemStackArray, ItemStack[] itemStackArray2, ItemStack[] itemStackArray3, ItemStack[] itemStackArray4, ItemStack[] itemStackArray5, ItemStack[] itemStackArray6) {
-            this.hotbar = itemStackArray;
-            this.storage = itemStackArray2;
-            this.armor = itemStackArray3;
-            this.utility = itemStackArray4;
-            this.tools = itemStackArray5;
-            this.backpack = itemStackArray6;
+        private InventorySnapshot(ItemStack[] hotbar, ItemStack[] storage, ItemStack[] armor, ItemStack[] utility, ItemStack[] tools, ItemStack[] backpack) {
+            this.hotbar = hotbar;
+            this.storage = storage;
+            this.armor = armor;
+            this.utility = utility;
+            this.tools = tools;
+            this.backpack = backpack;
         }
 
         private static InventorySnapshot capture(@Nonnull Inventory inventory) {
-            ItemContainer itemContainer = inventory.getHotbar();
-            ItemContainer itemContainer2 = inventory.getStorage();
-            ItemContainer itemContainer3 = inventory.getArmor();
-            ItemContainer itemContainer4 = inventory.getUtility();
-            ItemContainer itemContainer5 = inventory.getTools();
-            ItemContainer itemContainer6 = inventory.getBackpack();
-            return new InventorySnapshot(itemContainer != null ? InventoryStateManager.snapshotContainer(itemContainer) : new ItemStack[]{}, itemContainer2 != null ? InventoryStateManager.snapshotContainer(itemContainer2) : new ItemStack[]{}, itemContainer3 != null ? InventoryStateManager.snapshotContainer(itemContainer3) : new ItemStack[]{}, itemContainer4 != null ? InventoryStateManager.snapshotContainer(itemContainer4) : new ItemStack[]{}, itemContainer5 != null ? InventoryStateManager.snapshotContainer(itemContainer5) : new ItemStack[]{}, itemContainer6 != null ? InventoryStateManager.snapshotContainer(itemContainer6) : new ItemStack[]{});
+            ItemContainer hotbar = inventory.getHotbar();
+            ItemContainer storage = inventory.getStorage();
+            ItemContainer armor = inventory.getArmor();
+            ItemContainer utility = inventory.getUtility();
+            ItemContainer tools = inventory.getTools();
+            ItemContainer backpack = inventory.getBackpack();
+            return new InventorySnapshot(
+                hotbar != null ? snapshotContainer(hotbar) : new ItemStack[0],
+                storage != null ? snapshotContainer(storage) : new ItemStack[0],
+                armor != null ? snapshotContainer(armor) : new ItemStack[0],
+                utility != null ? snapshotContainer(utility) : new ItemStack[0],
+                tools != null ? snapshotContainer(tools) : new ItemStack[0],
+                backpack != null ? snapshotContainer(backpack) : new ItemStack[0]
+            );
         }
 
         private void restore(@Nonnull Inventory inventory) {
-            ItemContainer itemContainer = inventory.getHotbar();
-            ItemContainer itemContainer2 = inventory.getStorage();
-            ItemContainer itemContainer3 = inventory.getArmor();
-            ItemContainer itemContainer4 = inventory.getUtility();
-            ItemContainer itemContainer5 = inventory.getTools();
-            ItemContainer itemContainer6 = inventory.getBackpack();
-            if (itemContainer != null) {
-                InventoryStateManager.restoreContainer(itemContainer, this.hotbar);
+            ItemContainer hotbar = inventory.getHotbar();
+            ItemContainer storage = inventory.getStorage();
+            ItemContainer armor = inventory.getArmor();
+            ItemContainer utility = inventory.getUtility();
+            ItemContainer tools = inventory.getTools();
+            ItemContainer backpack = inventory.getBackpack();
+
+            if (hotbar != null) {
+                restoreContainer(hotbar, this.hotbar);
             }
-            if (itemContainer2 != null) {
-                InventoryStateManager.restoreContainer(itemContainer2, this.storage);
+            if (storage != null) {
+                restoreContainer(storage, this.storage);
             }
-            if (itemContainer3 != null) {
-                InventoryStateManager.restoreContainer(itemContainer3, this.armor);
+            if (armor != null) {
+                restoreContainer(armor, this.armor);
             }
-            if (itemContainer4 != null) {
-                InventoryStateManager.restoreContainer(itemContainer4, this.utility);
+            if (utility != null) {
+                restoreContainer(utility, this.utility);
             }
-            if (itemContainer5 != null) {
-                InventoryStateManager.restoreContainer(itemContainer5, this.tools);
+            if (tools != null) {
+                restoreContainer(tools, this.tools);
             }
-            if (itemContainer6 != null) {
-                InventoryStateManager.restoreContainer(itemContainer6, this.backpack);
+            if (backpack != null) {
+                restoreContainer(backpack, this.backpack);
             }
             inventory.markChanged();
         }

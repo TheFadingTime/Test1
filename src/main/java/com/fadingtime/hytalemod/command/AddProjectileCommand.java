@@ -1,17 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.protocol.GameMode
- *  com.hypixel.hytale.server.core.Message
- *  com.hypixel.hytale.server.core.command.system.CommandContext
- *  com.hypixel.hytale.server.core.command.system.basecommands.AbstractPlayerCommand
- *  com.hypixel.hytale.server.core.universe.PlayerRef
- *  com.hypixel.hytale.server.core.universe.world.World
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- */
 package com.fadingtime.hytalemod.command;
 
 import com.fadingtime.hytalemod.HytaleMod;
@@ -58,4 +44,3 @@ extends AbstractPlayerCommand {
         }
     }
 }
-

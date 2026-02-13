@@ -7,7 +7,6 @@ import com.fadingtime.hytalemod.component.SpawnedByMobWaveComponent;
 import com.fadingtime.hytalemod.config.ConfigManager;
 import com.hypixel.hytale.component.AddReason;
 import com.hypixel.hytale.component.CommandBuffer;
-import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Holder;
 import com.hypixel.hytale.component.Ref;
@@ -58,23 +57,23 @@ extends DeathSystems.OnDeathSystem {
     }
 
     public void onComponentAdded(Ref<EntityStore> ref, DeathComponent component, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
-        NPCEntity npc = (NPCEntity)commandBuffer.getComponent(ref, NPCEntity.getComponentType());
-        if (npc == null) {
+        if (commandBuffer.getComponent(ref, NPCEntity.getComponentType()) == null) {
             return;
         }
 
         component.setItemsLossMode(DeathConfig.ItemsLossMode.NONE);
-        TransformComponent transform = (TransformComponent)commandBuffer.getComponent(ref, TransformComponent.getComponentType());
-        HeadRotation headRotation = (HeadRotation)commandBuffer.getComponent(ref, HeadRotation.getComponentType());
+        var transform = (TransformComponent)commandBuffer.getComponent(ref, TransformComponent.getComponentType());
+        var headRotation = (HeadRotation)commandBuffer.getComponent(ref, HeadRotation.getComponentType());
         if (transform == null) {
             return;
         }
-        boolean isBoss = commandBuffer.getComponent(ref, this.bossMarkerType) != null || store.getComponent(ref, this.bossMarkerType) != null;
-        int essenceDropCount = isBoss ? BOSS_ESSENCE_DROP_COUNT : NORMAL_ESSENCE_DROP_COUNT;
-        ItemStack lifeEssence = new ItemStack(ConfigManager.get().lifeEssenceItemId, essenceDropCount);
+
+        boolean isBoss = store.getComponent(ref, this.bossMarkerType) != null || commandBuffer.getComponent(ref, this.bossMarkerType) != null;
+        int amount = isBoss ? BOSS_ESSENCE_DROP_COUNT : NORMAL_ESSENCE_DROP_COUNT;
+        ItemStack lifeEssence = new ItemStack(ConfigManager.get().lifeEssenceItemId, amount);
         Vector3d dropPosition = transform.getPosition().clone().add(0.0, 1.0, 0.0);
-        Vector3f dropRotation = headRotation != null ? headRotation.getRotation().clone() : new Vector3f(0.0f, 0.0f, 0.0f);
-        Holder[] drops = ItemComponent.generateItemDrops(store, List.of(lifeEssence), (Vector3d)dropPosition, (Vector3f)dropRotation);
+        Vector3f dropRotation = headRotation == null ? new Vector3f(0.0f, 0.0f, 0.0f) : headRotation.getRotation().clone();
+        Holder[] drops = ItemComponent.generateItemDrops(store, List.of(lifeEssence), dropPosition, dropRotation);
         if (drops == null || drops.length == 0) {
             HytaleMod.LOGGER.log(Level.WARNING, "No life essence drops generated for npc " + ref);
             return;

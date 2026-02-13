@@ -1,12 +1,5 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  javax.annotation.Nullable
- */
 package com.fadingtime.hytalemod.config;
 
-import com.fadingtime.hytalemod.config.ConfigLoader;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,32 +11,34 @@ import javax.annotation.Nullable;
 
 public final class ConfigManager {
     private static final SpawnConfig DEFAULTS = SpawnConfig.defaults();
-    private static final AtomicReference<SpawnConfig> CURRENT = new AtomicReference<SpawnConfig>(DEFAULTS);
+    private static final AtomicReference<SpawnConfig> CURRENT = new AtomicReference<>(DEFAULTS);
 
     private ConfigManager() {
     }
 
-    public static synchronized void load(Path path, Logger logger) {
-        SpawnConfig spawnConfig = DEFAULTS;
+    public static synchronized void load(Path pluginFilePath, Logger logger) {
+        SpawnConfig loadedConfig = DEFAULTS;
         try {
-            spawnConfig = ConfigLoader.load(path, logger, DEFAULTS);
+            loadedConfig = ConfigLoader.load(pluginFilePath, logger, DEFAULTS);
         }
-        catch (IllegalArgumentException illegalArgumentException) {
-            throw illegalArgumentException;
+        catch (IllegalArgumentException exception) {
+            throw exception;
         }
-        catch (RuntimeException runtimeException) {
-            logger.log(Level.WARNING, "Spawn config load failed, using defaults.", runtimeException);
+        catch (RuntimeException exception) {
+            logger.log(Level.WARNING, "Spawn config load failed, using defaults.", exception);
         }
-        if (spawnConfig == null) {
+        if (loadedConfig == null) {
             logger.warning("Spawn config loader returned null. Defaults applied.");
-            spawnConfig = DEFAULTS;
+            loadedConfig = DEFAULTS;
         }
-        ConfigManager.apply(spawnConfig);
+        apply(loadedConfig);
+        // TODO: Hot-reload would save us from restart spam while balancing.
     }
 
     @Deprecated
-    public static synchronized void initialize(Path path, Logger logger) {
-        ConfigManager.load(path, logger);
+    public static synchronized void initialize(Path pluginFilePath, Logger logger) {
+        // Migration note: old code called MobSpawnConfig.initialize(...). Use ConfigManager.load(...) for new code.
+        load(pluginFilePath, logger);
     }
 
     public static SpawnConfig get() {
@@ -51,28 +46,21 @@ public final class ConfigManager {
     }
 
     public static List<BossDefinition> getBossDefinitions() {
-        return ConfigManager.CURRENT.get().bosses;
+        return CURRENT.get().bosses;
     }
 
     @Nullable
-    public static BossDefinition findBossForWave(int n) {
-        for (BossDefinition bossDefinition : ConfigManager.CURRENT.get().bosses) {
-            if (!bossDefinition.shouldSpawnAtWave(n)) continue;
-            return bossDefinition;
+    public static BossDefinition findBossForWave(int wave) {
+        for (BossDefinition definition : CURRENT.get().bosses) {
+            if (definition.shouldSpawnAtWave(wave)) {
+                return definition;
+            }
         }
         return null;
     }
 
-    private static void apply(SpawnConfig spawnConfig) {
-        CURRENT.set(spawnConfig);
-    }
-
-    private static List<BossDefinition> defaultBosses() {
-        ArrayList<BossDefinition> arrayList = new ArrayList<BossDefinition>();
-        arrayList.add(new BossDefinition("skeleton", "Boss_Skeleton", 5, 10, List.of(), 4.0f, 500.0f, 150.0f, HealthMode.WAVE_NUMBER, "BossWaveHealth"));
-        arrayList.add(new BossDefinition("toad", "Boss_Toad_Rhino_Magma", 10, 10, List.of(), 2.0f, 400.0f, 200.0f, HealthMode.SPAWN_INDEX, "ToadBossHealth"));
-        arrayList.add(new BossDefinition("wraith", "Boss_Wraith", 40, 0, List.of(Integer.valueOf(40), Integer.valueOf(50)), 2.0f, 1000.0f, 500.0f, HealthMode.SPAWN_INDEX, "WraithBossHealth"));
-        return arrayList;
+    private static void apply(SpawnConfig config) {
+        CURRENT.set(config);
     }
 
     public static final class SpawnConfig {
@@ -84,27 +72,97 @@ public final class ConfigManager {
         public final double maxSpawnRadius;
         public final double spawnYOffset;
         public final float maxMobHealth;
+        public final float waveHealthBonus;
         public final List<String> hostileRoles;
         public final String lifeEssenceItemId;
         public final List<BossDefinition> bosses;
 
-        SpawnConfig(int n, int n2, int n3, long l, double d, double d2, double d3, float f, List<String> list, String string, List<BossDefinition> list2) {
-            this.spawnCount = n;
-            this.spawnCountPerWave = n2;
-            this.maxMobsPerWave = n3;
-            this.spawnIntervalMs = l;
-            this.minSpawnRadius = d;
-            this.maxSpawnRadius = d2;
-            this.spawnYOffset = d3;
-            this.maxMobHealth = f;
-            this.hostileRoles = list == null ? List.of() : list;
-            this.lifeEssenceItemId = string == null || string.isBlank() ? "Ingredient_Life_Essence" : string;
-            this.bosses = list2 == null ? List.of() : list2;
+        SpawnConfig(
+            int spawnCount,
+            int spawnCountPerWave,
+            int maxMobsPerWave,
+            long spawnIntervalMs,
+            double minSpawnRadius,
+            double maxSpawnRadius,
+            double spawnYOffset,
+            float maxMobHealth,
+            float waveHealthBonus,
+            List<String> hostileRoles,
+            String lifeEssenceItemId,
+            List<BossDefinition> bosses
+        ) {
+            this.spawnCount = spawnCount;
+            this.spawnCountPerWave = spawnCountPerWave;
+            this.maxMobsPerWave = maxMobsPerWave;
+            this.spawnIntervalMs = spawnIntervalMs;
+            this.minSpawnRadius = minSpawnRadius;
+            this.maxSpawnRadius = maxSpawnRadius;
+            this.spawnYOffset = spawnYOffset;
+            this.maxMobHealth = maxMobHealth;
+            this.waveHealthBonus = waveHealthBonus;
+            this.hostileRoles = hostileRoles == null ? List.of() : hostileRoles;
+            this.lifeEssenceItemId = lifeEssenceItemId == null || lifeEssenceItemId.isBlank() ? "Ingredient_Life_Essence" : lifeEssenceItemId;
+            this.bosses = bosses == null ? List.of() : bosses;
         }
 
         static SpawnConfig defaults() {
-            return new SpawnConfig(5, 5, 20, 10000L, 10.0, 20.0, 0.5, 126.0f, List.of("Wave_Skeleton", "Wave_Zombie_Burnt"), "Ingredient_Life_Essence", ConfigManager.defaultBosses());
+            return new SpawnConfig(
+                5,
+                5,
+                20,
+                10000L,
+                10.0,
+                20.0,
+                0.5,
+                50.0f,
+                // Small non-boss scaling keeps early waves readable for solo players.
+                10.0f,
+                List.of("Spirit_Ember", "Skeleton", "Zombie"),
+                "Ingredient_Life_Essence",
+                defaultBosses()
+            );
         }
+    }
+
+    private static List<BossDefinition> defaultBosses() {
+        List<BossDefinition> defaults = new ArrayList<>();
+        defaults.add(new BossDefinition(
+            "skeleton",
+            "Skeleton",
+            5,
+            10,
+            List.of(),
+            4.0f,
+            500.0f,
+            150.0f,
+            HealthMode.WAVE_NUMBER,
+            "BossWaveHealth"
+        ));
+        defaults.add(new BossDefinition(
+            "toad",
+            "Toad_Rhino_Magma",
+            10,
+            10,
+            List.of(),
+            2.0f,
+            400.0f,
+            200.0f,
+            HealthMode.SPAWN_INDEX,
+            "ToadBossHealth"
+        ));
+        defaults.add(new BossDefinition(
+            "wraith",
+            "Wraith",
+            40,
+            0,
+            List.of(40, 50),
+            2.0f,
+            1000.0f,
+            500.0f,
+            HealthMode.SPAWN_INDEX,
+            "WraithBossHealth"
+        ));
+        return defaults;
     }
 
     public static final class BossDefinition {
@@ -119,17 +177,29 @@ public final class ConfigManager {
         private final HealthMode healthMode;
         private final String healthModifierId;
 
-        BossDefinition(String string, String string2, int n, int n2, List<Integer> list, float f, float f2, float f3, HealthMode healthMode, String string3) {
-            this.id = string == null || string.isBlank() ? "boss" : string.trim().toLowerCase(Locale.ROOT);
-            this.role = string2 == null || string2.isBlank() ? "Skeleton" : string2.trim();
-            this.startWave = n <= 0 ? 1 : n;
-            this.interval = n2 < 0 ? 0 : n2;
-            this.explicitWaves = list == null ? List.of() : list;
-            this.scale = f > 0.0f ? f : 1.0f;
-            this.healthBase = f2 > 0.0f ? f2 : 100.0f;
-            this.healthPerStep = f3;
+        BossDefinition(
+            String id,
+            String role,
+            int startWave,
+            int interval,
+            List<Integer> explicitWaves,
+            float scale,
+            float healthBase,
+            float healthPerStep,
+            HealthMode healthMode,
+            String healthModifierId
+        ) {
+            this.id = id == null || id.isBlank() ? "boss" : id.trim().toLowerCase(Locale.ROOT);
+            this.role = role == null || role.isBlank() ? "Skeleton" : role.trim();
+            this.startWave = startWave <= 0 ? 1 : startWave;
+            this.interval = interval < 0 ? 0 : interval;
+            this.explicitWaves = explicitWaves == null ? List.of() : explicitWaves;
+            this.scale = scale > 0.0f ? scale : 1.0f;
+            this.healthBase = healthBase > 0.0f ? healthBase : 100.0f;
+            // assuming these are valid from ConfigLoader
+            this.healthPerStep = healthPerStep;
             this.healthMode = healthMode == null ? HealthMode.SPAWN_INDEX : healthMode;
-            this.healthModifierId = string3;
+            this.healthModifierId = healthModifierId;
         }
 
         public String id() {
@@ -172,55 +242,55 @@ public final class ConfigManager {
             return this.healthModifierId;
         }
 
-        public boolean shouldSpawnAtWave(int n) {
-            if (n <= 0) {
+        public boolean shouldSpawnAtWave(int wave) {
+            if (wave <= 0) {
                 return false;
             }
             if (!this.explicitWaves.isEmpty()) {
-                return this.explicitWaves.contains(n);
+                return this.explicitWaves.contains(wave);
             }
-            if (n < this.startWave) {
+            if (wave < this.startWave) {
                 return false;
             }
             if (this.interval <= 0) {
-                return n == this.startWave;
+                return wave == this.startWave;
             }
-            return (n - this.startWave) % this.interval == 0;
+            return (wave - this.startWave) % this.interval == 0;
         }
 
-        public int getSpawnIndex(int n) {
+        public int getSpawnIndex(int wave) {
             if (!this.explicitWaves.isEmpty()) {
-                int n2 = this.explicitWaves.indexOf(n);
-                return n2 >= 0 ? n2 + 1 : 1;
+                int index = this.explicitWaves.indexOf(wave);
+                return index >= 0 ? index + 1 : 1;
             }
             if (this.interval <= 0) {
                 return 1;
             }
-            return Math.max(1, (n - this.startWave) / this.interval + 1);
+            return Math.max(1, (wave - this.startWave) / this.interval + 1);
         }
 
-        public float getTargetHealth(int n) {
-            int n2 = this.healthMode == HealthMode.WAVE_NUMBER ? Math.max(0, n - 1) : Math.max(0, this.getSpawnIndex(n) - 1);
-            return this.healthBase + this.healthPerStep * (float)n2;
+        public float getTargetHealth(int wave) {
+            int stepIndex = this.healthMode == HealthMode.WAVE_NUMBER ? Math.max(0, wave - 1) : Math.max(0, this.getSpawnIndex(wave) - 1);
+            return this.healthBase + this.healthPerStep * (float)stepIndex;
         }
     }
 
-    public static enum HealthMode {
+    public enum HealthMode {
         WAVE_NUMBER("wave"),
         SPAWN_INDEX("spawn");
 
         private final String jsonValue;
 
-        private HealthMode(String string2) {
-            this.jsonValue = string2;
+        HealthMode(String jsonValue) {
+            this.jsonValue = jsonValue;
         }
 
-        static HealthMode fromJsonValue(String string) {
-            if (string == null || string.isBlank()) {
+        static HealthMode fromJsonValue(String raw) {
+            if (raw == null || raw.isBlank()) {
                 return SPAWN_INDEX;
             }
-            String string2 = string.trim().toLowerCase(Locale.ROOT);
-            if ("wave".equals(string2) || "wave_number".equals(string2)) {
+            String normalized = raw.trim().toLowerCase(Locale.ROOT);
+            if ("wave".equals(normalized) || "wave_number".equals(normalized)) {
                 return WAVE_NUMBER;
             }
             return SPAWN_INDEX;

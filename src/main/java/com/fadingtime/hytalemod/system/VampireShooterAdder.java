@@ -29,14 +29,14 @@ extends RefSystem<EntityStore> {
     }
 
     public void onEntityAdded(Ref<EntityStore> ref, AddReason reason, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
-        Player player = (Player)commandBuffer.getComponent(ref, Player.getComponentType());
-        if (player == null) {
-            return;
-        }
         if (commandBuffer.getComponent(ref, this.vampireShooterComponentType) != null) {
             return;
         }
-        VampireShooterComponent component = new VampireShooterComponent();
+        if (commandBuffer.getComponent(ref, Player.getComponentType()) == null) {
+            return;
+        }
+
+        var component = new VampireShooterComponent();
         PlayerRef playerRefComponent = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
         if (playerRefComponent == null) {
             playerRefComponent = (PlayerRef)commandBuffer.getComponent(ref, PlayerRef.getComponentType());

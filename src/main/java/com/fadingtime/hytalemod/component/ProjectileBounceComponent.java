@@ -1,11 +1,3 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.Component
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.component;
 
 import com.hypixel.hytale.component.Component;
@@ -21,28 +13,28 @@ implements Component<EntityStore> {
         this(1, 0.85f);
     }
 
-    public ProjectileBounceComponent(int n, float f) {
-        this.remainingBounces = Math.max(0, n);
-        this.speedMultiplier = Float.isFinite(f) ? Math.max(0.05f, f) : 0.85f;
+    public ProjectileBounceComponent(int remainingBounces, float speedMultiplier) {
+        this.remainingBounces = Math.max(0, remainingBounces);
+        this.speedMultiplier = Float.isFinite(speedMultiplier) ? Math.max(0.05f, speedMultiplier) : 0.85f;
     }
 
     public int getRemainingBounces() {
         return this.remainingBounces;
     }
 
-    public void setRemainingBounces(int n) {
-        this.remainingBounces = Math.max(0, n);
+    public void setRemainingBounces(int remainingBounces) {
+        this.remainingBounces = Math.max(0, remainingBounces);
     }
 
     public float getSpeedMultiplier() {
         return this.speedMultiplier;
     }
 
-    public void setSpeedMultiplier(float f) {
-        if (!Float.isFinite(f) || f <= 0.0f) {
+    public void setSpeedMultiplier(float speedMultiplier) {
+        if (!Float.isFinite(speedMultiplier) || speedMultiplier <= 0.0f) {
             return;
         }
-        this.speedMultiplier = Math.max(0.05f, f);
+        this.speedMultiplier = Math.max(0.05f, speedMultiplier);
     }
 
     @Nonnull

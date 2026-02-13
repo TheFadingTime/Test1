@@ -1,16 +1,7 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  javax.annotation.Nonnull
- *  javax.annotation.Nullable
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.persistence.PlayerStateStore;
 import com.fadingtime.hytalemod.persistence.PlayerStateStoreManager;
-import com.fadingtime.hytalemod.system.LevelingSystem;
-import com.fadingtime.hytalemod.system.PowerUpApplicator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -21,108 +12,148 @@ public final class PlayerDataRepository {
     private final PlayerStateStoreManager stateStoreManager;
     private final LevelingSystem levelingSystem;
     private final PowerUpApplicator powerUpApplicator;
-    private final ConcurrentMap<UUID, LevelingSystem.LevelProgress> levelByPlayer = new ConcurrentHashMap<UUID, LevelingSystem.LevelProgress>();
-    private final ConcurrentMap<UUID, PowerUpApplicator.PowerState> powerByPlayer = new ConcurrentHashMap<UUID, PowerUpApplicator.PowerState>();
-    private final ConcurrentMap<UUID, String> worldByPlayer = new ConcurrentHashMap<UUID, String>();
+    private final ConcurrentMap<UUID, LevelingSystem.LevelProgress> levelByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, PowerUpApplicator.PowerState> powerByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, String> worldByPlayer = new ConcurrentHashMap<>();
 
-    public PlayerDataRepository(@Nonnull PlayerStateStoreManager playerStateStoreManager, @Nonnull LevelingSystem levelingSystem, @Nonnull PowerUpApplicator powerUpApplicator) {
-        this.stateStoreManager = playerStateStoreManager;
+    public PlayerDataRepository(
+        @Nonnull PlayerStateStoreManager stateStoreManager,
+        @Nonnull LevelingSystem levelingSystem,
+        @Nonnull PowerUpApplicator powerUpApplicator
+    ) {
+        this.stateStoreManager = stateStoreManager;
         this.levelingSystem = levelingSystem;
         this.powerUpApplicator = powerUpApplicator;
     }
 
-    public void loadStateIfMissing(@Nonnull UUID uUID, @Nullable String string) {
-        Object object;
-        String string2 = string == null ? "default" : string;
-        String string3 = (String)this.worldByPlayer.get(uUID);
-        if (string3 == null || !string3.equals(string2)) {
-            PlayerStateStore playerStateStore = this.stateStoreManager.getStore(string2);
-            PlayerStateStore.PlayerLevelData playerLevelData = playerStateStore.loadLevel(uUID);
-            PlayerStateStore.PlayerPowerData playerPowerData = playerStateStore.loadPower(uUID);
-            this.levelByPlayer.put(uUID, this.levelingSystem.restoreProgress(playerLevelData.level, playerLevelData.essenceProgress, playerLevelData.lastStoreLevel));
-            this.powerByPlayer.put(uUID, this.powerUpApplicator.fromPersisted(playerPowerData));
-            this.worldByPlayer.put(uUID, string2);
+    public void loadStateIfMissing(@Nonnull UUID playerId, @Nullable String worldKey) {
+        String safeWorldKey = worldKey == null ? "default" : worldKey;
+        String currentWorld = this.worldByPlayer.get(playerId);
+
+        if (currentWorld == null || !currentWorld.equals(safeWorldKey)) {
+            PlayerStateStore store = this.stateStoreManager.getStore(safeWorldKey);
+            PlayerStateStore.PlayerLevelData levelData = store.loadLevel(playerId);
+            PlayerStateStore.PlayerPowerData powerData = store.loadPower(playerId);
+            this.levelByPlayer.put(playerId, this.levelingSystem.restoreProgress(levelData.level, levelData.essenceProgress, levelData.lastStoreLevel));
+            this.powerByPlayer.put(playerId, this.powerUpApplicator.fromPersisted(powerData));
+            this.worldByPlayer.put(playerId, safeWorldKey);
             return;
         }
-        if (!this.levelByPlayer.containsKey(uUID)) {
-            object = this.stateStoreManager.getStore(string2).loadLevel(uUID);
-            this.levelByPlayer.put(uUID, this.levelingSystem.restoreProgress(((PlayerStateStore.PlayerLevelData)object).level, ((PlayerStateStore.PlayerLevelData)object).essenceProgress, ((PlayerStateStore.PlayerLevelData)object).lastStoreLevel));
+
+        if (!this.levelByPlayer.containsKey(playerId)) {
+            PlayerStateStore.PlayerLevelData levelData = this.stateStoreManager.getStore(safeWorldKey).loadLevel(playerId);
+            this.levelByPlayer.put(playerId, this.levelingSystem.restoreProgress(levelData.level, levelData.essenceProgress, levelData.lastStoreLevel));
         }
-        if (!this.powerByPlayer.containsKey(uUID)) {
-            object = this.stateStoreManager.getStore(string2).loadPower(uUID);
-            this.powerByPlayer.put(uUID, this.powerUpApplicator.fromPersisted((PlayerStateStore.PlayerPowerData)object));
+        if (!this.powerByPlayer.containsKey(playerId)) {
+            PlayerStateStore.PlayerPowerData powerData = this.stateStoreManager.getStore(safeWorldKey).loadPower(playerId);
+            this.powerByPlayer.put(playerId, this.powerUpApplicator.fromPersisted(powerData));
         }
     }
 
-    public void savePlayerState(@Nonnull UUID uUID, @Nonnull String string) {
-        PowerUpApplicator.PowerState powerState;
-        PlayerStateStore playerStateStore = this.stateStoreManager.getStore(string);
-        LevelingSystem.LevelProgress levelProgress = (LevelingSystem.LevelProgress)this.levelByPlayer.get(uUID);
-        if (levelProgress != null) {
-            playerStateStore.saveLevel(uUID, levelProgress.level(), levelProgress.essenceProgress(), levelProgress.lastStoreLevel());
+    public void savePlayerState(@Nonnull UUID playerId, @Nonnull String worldKey) {
+        PlayerStateStore store = this.stateStoreManager.getStore(worldKey);
+        LevelingSystem.LevelProgress level = this.levelByPlayer.get(playerId);
+        if (level != null) {
+            store.saveLevel(playerId, level.level(), level.essenceProgress(), level.lastStoreLevel());
         }
-        if ((powerState = (PowerUpApplicator.PowerState)this.powerByPlayer.get(uUID)) != null) {
-            playerStateStore.savePower(uUID, powerState.projectileCount(), powerState.fireRateMultiplier(), powerState.pickupRangeBonus(), powerState.bounceBonus(), powerState.weaponDamageRank(), powerState.healthRank(), powerState.speedRank(), powerState.luckyRank(), powerState.skipRank(), powerState.projectileRainUsed());
+        PowerUpApplicator.PowerState power = this.powerByPlayer.get(playerId);
+        if (power != null) {
+            store.savePower(
+                playerId,
+                power.projectileCount(),
+                power.fireRateMultiplier(),
+                power.pickupRangeBonus(),
+                power.bounceBonus(),
+                power.weaponDamageRank(),
+                power.healthRank(),
+                power.speedRank(),
+                power.luckyRank(),
+                power.projectileRainUsed()
+            );
         }
     }
 
     @Nonnull
-    public PlayerStateStore.PlayerLevelData loadLevelData(@Nonnull UUID uUID, @Nonnull String string) {
-        return this.stateStoreManager.getStore(string).loadLevel(uUID);
+    public PlayerStateStore.PlayerLevelData loadLevelData(@Nonnull UUID playerId, @Nonnull String worldKey) {
+        return this.stateStoreManager.getStore(worldKey).loadLevel(playerId);
     }
 
     @Nonnull
-    public PlayerStateStore.PlayerPowerData loadPowerData(@Nonnull UUID uUID, @Nonnull String string) {
-        return this.stateStoreManager.getStore(string).loadPower(uUID);
+    public PlayerStateStore.PlayerPowerData loadPowerData(@Nonnull UUID playerId, @Nonnull String worldKey) {
+        return this.stateStoreManager.getStore(worldKey).loadPower(playerId);
     }
 
-    public void saveLevelData(@Nonnull UUID uUID, @Nonnull String string, int n, int n2, int n3) {
-        this.stateStoreManager.getStore(string).saveLevel(uUID, n, n2, n3);
+    public void saveLevelData(@Nonnull UUID playerId, @Nonnull String worldKey, int level, int essenceProgress, int lastStoreLevel) {
+        this.stateStoreManager.getStore(worldKey).saveLevel(playerId, level, essenceProgress, lastStoreLevel);
     }
 
-    public void savePowerData(@Nonnull UUID uUID, @Nonnull String string, int n, float f, float f2, int n2, int n3, int n4, int n5, int n6, int n7, boolean bl) {
-        this.stateStoreManager.getStore(string).savePower(uUID, n, f, f2, n2, n3, n4, n5, n6, n7, bl);
+    public void savePowerData(
+        @Nonnull UUID playerId,
+        @Nonnull String worldKey,
+        int projectileCount,
+        float fireRateMultiplier,
+        float pickupRangeBonus,
+        int bounceBonus,
+        int weaponDamageRank,
+        int healthRank,
+        int speedRank,
+        int luckyRank,
+        boolean projectileRainUsed
+    ) {
+        this.stateStoreManager.getStore(worldKey).savePower(
+            playerId,
+            projectileCount,
+            fireRateMultiplier,
+            pickupRangeBonus,
+            bounceBonus,
+            weaponDamageRank,
+            healthRank,
+            speedRank,
+            luckyRank,
+            projectileRainUsed
+        );
     }
 
     @Nonnull
-    public LevelingSystem.LevelProgress getOrCreateLevel(@Nonnull UUID uUID2) {
-        return this.levelByPlayer.computeIfAbsent(uUID2, uUID -> this.levelingSystem.newProgress());
+    public LevelingSystem.LevelProgress getOrCreateLevel(@Nonnull UUID playerId) {
+        return this.levelByPlayer.computeIfAbsent(playerId, id -> this.levelingSystem.newProgress());
     }
 
     @Nonnull
-    public PowerUpApplicator.PowerState getOrCreatePower(@Nonnull UUID uUID2) {
-        return this.powerByPlayer.computeIfAbsent(uUID2, uUID -> this.powerUpApplicator.newState());
+    public PowerUpApplicator.PowerState getOrCreatePower(@Nonnull UUID playerId) {
+        return this.powerByPlayer.computeIfAbsent(playerId, id -> this.powerUpApplicator.newState());
     }
 
     @Nullable
-    public LevelingSystem.LevelProgress getLevel(@Nonnull UUID uUID) {
-        return (LevelingSystem.LevelProgress)this.levelByPlayer.get(uUID);
+    public LevelingSystem.LevelProgress getLevel(@Nonnull UUID playerId) {
+        return this.levelByPlayer.get(playerId);
     }
 
     @Nullable
-    public PowerUpApplicator.PowerState getPower(@Nonnull UUID uUID) {
-        return (PowerUpApplicator.PowerState)this.powerByPlayer.get(uUID);
+    public PowerUpApplicator.PowerState getPower(@Nonnull UUID playerId) {
+        return this.powerByPlayer.get(playerId);
     }
 
     @Nullable
-    public String getLoadedWorld(@Nonnull UUID uUID) {
-        return (String)this.worldByPlayer.get(uUID);
+    public String getLoadedWorld(@Nonnull UUID playerId) {
+        return this.worldByPlayer.get(playerId);
     }
 
-    public void clearTransient(@Nonnull UUID uUID) {
-        this.levelByPlayer.remove(uUID);
-        this.powerByPlayer.remove(uUID);
-        this.worldByPlayer.remove(uUID);
+    public void clearTransient(@Nonnull UUID playerId) {
+        this.levelByPlayer.remove(playerId);
+        this.powerByPlayer.remove(playerId);
+        this.worldByPlayer.remove(playerId);
     }
 
-    public void resetProgressForPlayers(@Nonnull Iterable<UUID> iterable, @Nonnull String string) {
-        PlayerStateStore playerStateStore = this.stateStoreManager.getStore(string);
-        for (UUID uUID : iterable) {
-            if (uUID == null) continue;
-            this.clearTransient(uUID);
-            playerStateStore.saveLevel(uUID, 1, 0, 0);
-            playerStateStore.savePower(uUID, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, 0, false);
+    public void resetProgressForPlayers(@Nonnull Iterable<UUID> playerIds, @Nonnull String worldKey) {
+        PlayerStateStore store = this.stateStoreManager.getStore(worldKey);
+        for (UUID playerId : playerIds) {
+            if (playerId == null) {
+                continue;
+            }
+            clearTransient(playerId);
+            store.saveLevel(playerId, 1, 0, 0);
+            store.savePower(playerId, 0, 1.0f, 0.0f, 0, 0, 0, 0, 0, false);
         }
     }
 }
-

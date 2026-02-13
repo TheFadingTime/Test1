@@ -61,24 +61,28 @@ extends EntityTickingSystem<EntityStore> {
     }
 
     public void tick(float dt, int index, ArchetypeChunk<EntityStore> archetypeChunk, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
-        VampireShooterComponent shooterComponent = (VampireShooterComponent)archetypeChunk.getComponent(index, this.vampireShooterComponentType);
+        var shooterComponent = (VampireShooterComponent)archetypeChunk.getComponent(index, this.vampireShooterComponentType);
         if (shooterComponent == null) {
             return;
         }
-        Ref playerRef = archetypeChunk.getReferenceTo(index);
+
+        Ref<EntityStore> playerRef = archetypeChunk.getReferenceTo(index);
         if (playerRef == null || !playerRef.isValid()) {
             return;
         }
+
         TransformComponent transform = (TransformComponent)archetypeChunk.getComponent(index, this.transformComponentType);
         HeadRotation headRotation = (HeadRotation)archetypeChunk.getComponent(index, this.headRotationComponentType);
         if (transform == null || headRotation == null) {
             return;
         }
+
         shooterComponent.tickProjectileRainCooldown(dt);
         if (shooterComponent.getProjectileRainCooldown() <= 0.0f && shooterComponent.consumeProjectileRain()) {
-            this.spawnProjectileRain((Ref<EntityStore>)playerRef, transform.getPosition(), commandBuffer);
+            this.spawnProjectileRain(playerRef, transform.getPosition(), commandBuffer);
             shooterComponent.setProjectileRainCooldown(PROJECTILE_RAIN_BURST_DELAY_SECONDS);
         }
+
         shooterComponent.incrementTimer(dt);
         float rate = shooterComponent.getFireRateMultiplier();
         float interval = rate <= 0.0f ? FIRE_INTERVAL_SECONDS : FIRE_INTERVAL_SECONDS / rate;
@@ -95,9 +99,11 @@ extends EntityTickingSystem<EntityStore> {
             int count = Math.min(projectileCount, MAX_PROJECTILES);
             Vector3d position = transform.getPosition();
             Vector3f rotation = headRotation.getRotation();
+
             Vector3d forward = new Vector3d();
             PhysicsMath.vectorFromAngles((float)rotation.getYaw(), (float)rotation.getPitch(), (Vector3d)forward);
             forward.normalize();
+
             Vector3d forwardFlat = new Vector3d(forward.x, 0.0, forward.z);
             double forwardLen = Math.sqrt(forwardFlat.x * forwardFlat.x + forwardFlat.z * forwardFlat.z);
             if (forwardLen > 1.0E-4) {
@@ -107,20 +113,23 @@ extends EntityTickingSystem<EntityStore> {
                 forwardFlat.x = 0.0;
                 forwardFlat.z = 1.0;
             }
+
             Vector3d right = new Vector3d(forwardFlat.z, 0.0, -forwardFlat.x);
             int bounceCount = Math.min(MAX_BOUNCES, Math.max(0, BASE_BOUNCES + shooterComponent.getBounceBonus()));
-            ProjectileHelper.fireProjectileWithBounce((Ref<EntityStore>)playerRef, commandBuffer, this.uuidComponentType, position, rotation, 0.0f, FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
+
+            ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, position, rotation, 0.0f, FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
             int remaining = count - 1;
             if (remaining <= 0) {
                 return;
             }
+
             for (int i = 0; i < remaining; ++i) {
-                double angle = Math.PI * 2 * (double)i / (double)remaining;
+                double angle = 2.0 * Math.PI * (double)i / (double)remaining;
                 double cos = Math.cos(angle);
                 double sin = Math.sin(angle);
                 Vector3d spawnBase = position.clone();
-                spawnBase.add(forwardFlat.x * cos * 0.9 + right.x * sin * 0.9, 0.0, forwardFlat.z * cos * 0.9 + right.z * sin * 0.9);
-                ProjectileHelper.fireProjectileWithBounce((Ref<EntityStore>)playerRef, commandBuffer, this.uuidComponentType, spawnBase, rotation, (float)Math.toDegrees(angle), FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
+                spawnBase.add(forwardFlat.x * cos * PROJECTILE_CIRCLE_RADIUS + right.x * sin * PROJECTILE_CIRCLE_RADIUS, 0.0, forwardFlat.z * cos * PROJECTILE_CIRCLE_RADIUS + right.z * sin * PROJECTILE_CIRCLE_RADIUS);
+                ProjectileHelper.fireProjectileWithBounce(playerRef, commandBuffer, this.uuidComponentType, spawnBase, rotation, (float)Math.toDegrees(angle), FIREBALL_PROJECTILE_ID, FIREBALL_SPEED, HytaleMod.getInstance().getProjectileBounceComponentType(), bounceCount, FIREBALL_BOUNCE_SPEED_MULTIPLIER, HytaleMod.LOGGER);
             }
         }
     }

@@ -1,27 +1,9 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.hypixel.hytale.component.Ref
- *  com.hypixel.hytale.component.Store
- *  com.hypixel.hytale.logger.HytaleLogger$Api
- *  com.hypixel.hytale.server.core.HytaleServer
- *  com.hypixel.hytale.server.core.entity.entities.Player
- *  com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud
- *  com.hypixel.hytale.server.core.universe.PlayerRef
- *  com.hypixel.hytale.server.core.universe.world.World
- *  com.hypixel.hytale.server.core.universe.world.WorldConfig
- *  com.hypixel.hytale.server.core.universe.world.storage.EntityStore
- *  javax.annotation.Nonnull
- */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.HytaleMod;
-import com.fadingtime.hytalemod.system.BossHudSystem;
 import com.fadingtime.hytalemod.ui.BossBarHud;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
-import com.hypixel.hytale.logger.HytaleLogger;
 import com.hypixel.hytale.server.core.HytaleServer;
 import com.hypixel.hytale.server.core.entity.entities.Player;
 import com.hypixel.hytale.server.core.entity.entities.player.hud.CustomUIHud;
@@ -41,106 +23,114 @@ public final class HudUpdateService {
     private final HytaleMod plugin;
     private final String defaultBossName;
     private final long hudReadyDelayMs;
-    private final ConcurrentMap<UUID, ScheduledFuture<?>> hudUpdateTasks = new ConcurrentHashMap();
+    private final ConcurrentMap<UUID, ScheduledFuture<?>> hudUpdateTasks = new ConcurrentHashMap<>();
 
-    public HudUpdateService(@Nonnull HytaleMod hytaleMod, @Nonnull String string, long l) {
-        this.plugin = hytaleMod;
-        this.defaultBossName = string;
-        this.hudReadyDelayMs = l;
+    public HudUpdateService(@Nonnull HytaleMod plugin, @Nonnull String defaultBossName, long hudReadyDelayMs) {
+        this.plugin = plugin;
+        this.defaultBossName = defaultBossName;
+        this.hudReadyDelayMs = hudReadyDelayMs;
     }
 
-    public BossBarHud ensureHud(@Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull Store<EntityStore> store, boolean bl) {
-        CustomUIHud customUIHud = player.getHudManager().getCustomHud();
-        if (customUIHud instanceof BossBarHud) {
-            if (bl) {
-                ((BossBarHud)customUIHud).setLevelHudVisible(true);
+    public BossBarHud ensureHud(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull Store<EntityStore> store, boolean inGameplayWorld) {
+        CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
+        if (currentHud instanceof BossBarHud) {
+            if (inGameplayWorld) {
+                ((BossBarHud)currentHud).setLevelHudVisible(true);
             }
-            return (BossBarHud)customUIHud;
+            return (BossBarHud)currentHud;
         }
-        if (customUIHud != null) {
-            if (!bl) {
+        if (currentHud != null) {
+            if (!inGameplayWorld) {
+                this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] ensureHud blocked: existing=%s player=%s", currentHud.getClass().getSimpleName(), playerRefComponent.getUuid());
                 return null;
             }
+            this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] ensureHud replace: existing=%s player=%s", currentHud.getClass().getSimpleName(), playerRefComponent.getUuid());
         }
-        BossBarHud bossBarHud = new BossBarHud(playerRef, this.defaultBossName, 1.0f);
-        player.getHudManager().setCustomHud(playerRef, (CustomUIHud)bossBarHud);
-        return bossBarHud;
+        BossBarHud hud = new BossBarHud(playerRefComponent, this.defaultBossName, 1.0f);
+        this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] ensureHud create player=%s", playerRefComponent.getUuid());
+        playerComponent.getHudManager().setCustomHud(playerRefComponent, hud);
+        return hud;
     }
 
-    public void clearHudForPlayer(@Nonnull Player player, @Nonnull PlayerRef playerRef, @Nonnull UUID uUID) {
-        CustomUIHud customUIHud = player.getHudManager().getCustomHud();
-        if (customUIHud != null) {
-            if (customUIHud instanceof BossBarHud) {
-                ((BossBarHud)customUIHud).setBossVisible(false);
-                ((BossBarHud)customUIHud).setLevelHudVisible(false);
+    public void clearHudForPlayer(@Nonnull Player playerComponent, @Nonnull PlayerRef playerRefComponent, @Nonnull UUID playerId) {
+        this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] clearHudForPlayer start player=%s", playerId);
+        CustomUIHud currentHud = playerComponent.getHudManager().getCustomHud();
+        if (currentHud != null) {
+            if (currentHud instanceof BossBarHud) {
+                this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] hide BossBarHud player=%s", playerId);
+                ((BossBarHud)currentHud).setBossVisible(false);
+                ((BossBarHud)currentHud).setLevelHudVisible(false);
             } else {
+                this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] resetHud suppressed (to avoid crash) player=%s hud=%s", playerId, currentHud.getClass().getSimpleName());
             }
         } else {
+            this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] resetHud suppressed (no currentHud) player=%s", playerId);
         }
+
         BossHudSystem bossHudSystem = HytaleMod.getInstance().getBossHudSystem();
         if (bossHudSystem != null) {
-            bossHudSystem.clearBossHud(uUID);
+            this.plugin.getLogger().at(Level.INFO).log("[HUD_DEBUG] clearBossHud call player=%s", playerId);
+            bossHudSystem.clearBossHud(playerId);
         }
     }
 
-    public void scheduleHudUpdate(@Nonnull World world, @Nonnull PlayerRef playerRef, @Nonnull Runnable runnable) {
-        UUID uUID = playerRef.getUuid();
-        ScheduledFuture scheduledFuture = (ScheduledFuture)this.hudUpdateTasks.remove(uUID);
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
+    public void scheduleHudUpdate(@Nonnull World world, @Nonnull PlayerRef playerRefComponent, @Nonnull Runnable action) {
+        UUID playerId = playerRefComponent.getUuid();
+        ScheduledFuture<?> existing = this.hudUpdateTasks.remove(playerId);
+        if (existing != null) {
+            existing.cancel(false);
         }
-        ScheduledFuture<?> scheduledFuture2 = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
-            this.hudUpdateTasks.remove(uUID);
-            if (!HudUpdateService.isPlayerInWorld(playerRef, world)) {
+        ScheduledFuture<?> future = HytaleServer.SCHEDULED_EXECUTOR.schedule(() -> {
+            this.hudUpdateTasks.remove(playerId);
+            if (!isPlayerInWorld(playerRefComponent, world)) {
                 return;
             }
-            this.executeIfTicking(world, runnable);
+            executeIfTicking(world, action);
         }, this.hudReadyDelayMs, TimeUnit.MILLISECONDS);
-        this.hudUpdateTasks.put(uUID, scheduledFuture2);
+        this.hudUpdateTasks.put(playerId, future);
     }
 
-    public void cancelHudUpdate(@Nonnull UUID uUID) {
-        ScheduledFuture scheduledFuture = (ScheduledFuture)this.hudUpdateTasks.remove(uUID);
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
+    public void cancelHudUpdate(@Nonnull UUID playerId) {
+        ScheduledFuture<?> existing = this.hudUpdateTasks.remove(playerId);
+        if (existing != null) {
+            existing.cancel(false);
         }
     }
 
-    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable runnable) {
+    private void executeIfTicking(@Nonnull World world, @Nonnull Runnable action) {
         if (!world.isTicking()) {
             return;
         }
         try {
-            world.execute(runnable);
-        }
-        catch (IllegalThreadStateException illegalThreadStateException) {
+            world.execute(action);
+        } catch (IllegalThreadStateException exception) {
+            this.plugin.getLogger().at(Level.FINE).log("Skipped world task because world is no longer in a valid ticking state.");
         }
     }
 
-    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRef, @Nonnull World world) {
-        Ref ref = playerRef.getReference();
-        if (ref == null || !ref.isValid()) {
+    private static boolean isPlayerInWorld(@Nonnull PlayerRef playerRefComponent, @Nonnull World world) {
+        Ref<EntityStore> playerRef = playerRefComponent.getReference();
+        if (playerRef == null || !playerRef.isValid()) {
             return false;
         }
-        Store store = ref.getStore();
+        Store<EntityStore> store = playerRef.getStore();
         if (store == null) {
             return false;
         }
-        World world2 = ((EntityStore)store.getExternalData()).getWorld();
-        if (world2 == null) {
+        World currentWorld = ((EntityStore)store.getExternalData()).getWorld();
+        if (currentWorld == null) {
             return false;
         }
-        WorldConfig worldConfig = world2.getWorldConfig();
-        WorldConfig worldConfig2 = world.getWorldConfig();
-        if (worldConfig != null && worldConfig2 != null && worldConfig.getUuid() != null && worldConfig2.getUuid() != null) {
-            return worldConfig.getUuid().equals(worldConfig2.getUuid());
+        WorldConfig currentConfig = currentWorld.getWorldConfig();
+        WorldConfig targetConfig = world.getWorldConfig();
+        if (currentConfig != null && targetConfig != null && currentConfig.getUuid() != null && targetConfig.getUuid() != null) {
+            return currentConfig.getUuid().equals(targetConfig.getUuid());
         }
-        String string = world2.getName();
-        String string2 = world.getName();
-        if (string != null && string2 != null) {
-            return string.equals(string2);
+        String currentName = currentWorld.getName();
+        String targetName = world.getName();
+        if (currentName != null && targetName != null) {
+            return currentName.equals(targetName);
         }
-        return world2 == world;
+        return currentWorld == world;
     }
 }
-

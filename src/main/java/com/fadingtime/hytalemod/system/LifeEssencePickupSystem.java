@@ -59,12 +59,15 @@ extends EntityTickingSystem<EntityStore> {
     public void tick(float dt, int index, ArchetypeChunk<EntityStore> archetypeChunk, Store<EntityStore> store, CommandBuffer<EntityStore> commandBuffer) {
         Player player = (Player)archetypeChunk.getComponent(index, this.playerType);
         PlayerRef playerRefComponent = (PlayerRef)archetypeChunk.getComponent(index, this.playerRefType);
+        if (player == null || playerRefComponent == null) {
+            return;
+        }
         TransformComponent playerTransform = (TransformComponent)archetypeChunk.getComponent(index, this.transformType);
-        if (player == null || playerRefComponent == null || playerTransform == null) {
+        if (playerTransform == null) {
             return;
         }
 
-        Ref playerRef = archetypeChunk.getReferenceTo(index);
+        Ref<EntityStore> playerRef = archetypeChunk.getReferenceTo(index);
         VampireShooterComponent shooter = null;
         if (playerRef != null && playerRef.isValid()) {
             shooter = (VampireShooterComponent)store.getComponent(playerRef, this.shooterType);
@@ -79,6 +82,7 @@ extends EntityTickingSystem<EntityStore> {
         double attractRadius = bonus > 0.0 ? Math.max(DEFAULT_PICKUP_RADIUS, bonus) : 0.0;
         double attractRadiusSq = attractRadius * attractRadius;
         AtomicBoolean pickedUp = new AtomicBoolean(false);
+        final double tickDt = dt;
 
         store.forEachChunk(this.itemQuery, (itemChunk, itemBuffer) -> {
             if (pickedUp.get()) {
@@ -111,7 +115,7 @@ extends EntityTickingSystem<EntityStore> {
                     double vx = dx / dist * ATTRACT_SPEED;
                     double vy = dy / dist * ATTRACT_SPEED;
                     double vz = dz / dist * ATTRACT_SPEED;
-                    Vector3d newPos = itemPos.clone().add(vx * dt, vy * dt, vz * dt);
+                    Vector3d newPos = itemPos.clone().add(vx * tickDt, vy * tickDt, vz * tickDt);
                     itemTransform.setPosition(newPos);
                     itemTransform.markChunkDirty((ComponentAccessor)store);
                 }
