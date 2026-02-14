@@ -1,6 +1,28 @@
-.gradle/
-build/
-libs/
-out/
+# Maven
+target/
+dependency-reduced-pom.xml
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Java
+*.class
 *.log
 *.tmp
+
+# Project
+libs/
+out/
+nul

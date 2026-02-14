@@ -3,7 +3,6 @@ package com.fadingtime.hytalemod.config;
 import java.nio.file.Path;
 import java.util.logging.Logger;
 import org.bson.BsonDocument;
-import org.bson.BsonValue;
 
 public final class LifeEssenceConfig {
     public final int essencePerLevelBase;
@@ -48,6 +47,15 @@ public final class LifeEssenceConfig {
     public final int joinFoodQuantity;
     public final int joinDefaultDurability;
     public final String joinForcedWeatherId;
+    public final float cameraDistance;
+    public final float cameraPositionLerpSpeed;
+    public final float cameraRotationLerpSpeed;
+    public final float cameraPitch;
+    public final long disconnectGracePeriodMs;
+    public final long powerBonusEarlyDelayMs;
+    public final long powerBonusLateDelayMs;
+    public final float speedLerpFactor;
+    public final float minFireRateClamp;
 
     private LifeEssenceConfig(
         int essencePerLevelBase,
@@ -91,7 +99,16 @@ public final class LifeEssenceConfig {
         int joinArrowQuantity,
         int joinFoodQuantity,
         int joinDefaultDurability,
-        String joinForcedWeatherId
+        String joinForcedWeatherId,
+        float cameraDistance,
+        float cameraPositionLerpSpeed,
+        float cameraRotationLerpSpeed,
+        float cameraPitch,
+        long disconnectGracePeriodMs,
+        long powerBonusEarlyDelayMs,
+        long powerBonusLateDelayMs,
+        float speedLerpFactor,
+        float minFireRateClamp
     ) {
         this.essencePerLevelBase = essencePerLevelBase;
         this.essencePerLevelIncrement = essencePerLevelIncrement;
@@ -135,6 +152,15 @@ public final class LifeEssenceConfig {
         this.joinFoodQuantity = joinFoodQuantity;
         this.joinDefaultDurability = joinDefaultDurability;
         this.joinForcedWeatherId = joinForcedWeatherId;
+        this.cameraDistance = cameraDistance;
+        this.cameraPositionLerpSpeed = cameraPositionLerpSpeed;
+        this.cameraRotationLerpSpeed = cameraRotationLerpSpeed;
+        this.cameraPitch = cameraPitch;
+        this.disconnectGracePeriodMs = disconnectGracePeriodMs;
+        this.powerBonusEarlyDelayMs = powerBonusEarlyDelayMs;
+        this.powerBonusLateDelayMs = powerBonusLateDelayMs;
+        this.speedLerpFactor = speedLerpFactor;
+        this.minFireRateClamp = minFireRateClamp;
     }
 
     public static LifeEssenceConfig defaults() {
@@ -180,96 +206,81 @@ public final class LifeEssenceConfig {
             200,
             25,
             5000,
-            "Zone4_Lava_Fields"
+            "Zone4_Lava_Fields",
+            20.0f,
+            0.2f,
+            0.2f,
+            -1.5707964f,
+            1200L,
+            300L,
+            1200L,
+            0.2f,
+            0.1f
         );
     }
 
     public static LifeEssenceConfig load(Path pluginFilePath, Logger logger) {
         LifeEssenceConfig defaults = LifeEssenceConfig.defaults();
         BsonDocument doc = JsonConfigLoader.loadDocument(pluginFilePath, "life-essence.json", "config/life-essence.json", logger);
+        BsonDocument essence = ConfigUtils.getSubDocument(doc, "essence");
+        BsonDocument store = ConfigUtils.getSubDocument(doc, "store");
+        BsonDocument upgrades = ConfigUtils.getSubDocument(doc, "upgrades");
+        BsonDocument player = ConfigUtils.getSubDocument(doc, "player");
+        BsonDocument joinLoadout = ConfigUtils.getSubDocument(doc, "joinLoadout");
+        BsonDocument camera = ConfigUtils.getSubDocument(doc, "camera");
+        BsonDocument ui = ConfigUtils.getSubDocument(doc, "ui");
         return new LifeEssenceConfig(
-            LifeEssenceConfig.readInt(doc, "essencePerLevelBase", defaults.essencePerLevelBase, 1),
-            LifeEssenceConfig.readInt(doc, "essencePerLevelIncrement", defaults.essencePerLevelIncrement, 0),
-            LifeEssenceConfig.readInt(doc, "essencePerLevelMax", defaults.essencePerLevelMax, 1),
-            LifeEssenceConfig.readString(doc, "defaultBossName", defaults.defaultBossName),
-            LifeEssenceConfig.readFloat(doc, "storeSlowmoFactor", defaults.storeSlowmoFactor, 0.01f),
-            LifeEssenceConfig.readInt(doc, "storeOpenLevelStart", defaults.storeOpenLevelStart, 1),
-            LifeEssenceConfig.readInt(doc, "storeOpenLevelInterval", defaults.storeOpenLevelInterval, 1),
-            LifeEssenceConfig.readInt(doc, "storeOpenLevelMax", defaults.storeOpenLevelMax, 1),
-            LifeEssenceConfig.readInt(doc, "maxFireRateUpgrades", defaults.maxFireRateUpgrades, 0),
-            LifeEssenceConfig.readFloat(doc, "fireRateMultiplierPerUpgrade", defaults.fireRateMultiplierPerUpgrade, 0.001f),
-            LifeEssenceConfig.readInt(doc, "maxPickupRangeUpgrades", defaults.maxPickupRangeUpgrades, 0),
-            LifeEssenceConfig.readFloat(doc, "pickupRangePerUpgrade", defaults.pickupRangePerUpgrade, 0.0f),
-            LifeEssenceConfig.readFloat(doc, "maxPickupRangeBonus", defaults.maxPickupRangeBonus, 0.0f),
-            LifeEssenceConfig.readInt(doc, "maxExtraProjectiles", defaults.maxExtraProjectiles, 0),
-            LifeEssenceConfig.readInt(doc, "maxBounceUpgrades", defaults.maxBounceUpgrades, 0),
-            LifeEssenceConfig.readInt(doc, "maxWeaponDamageUpgrades", defaults.maxWeaponDamageUpgrades, 0),
-            LifeEssenceConfig.readFloat(doc, "weaponDamageBonusPerUpgrade", defaults.weaponDamageBonusPerUpgrade, 0.0f),
-            LifeEssenceConfig.readInt(doc, "maxHealthUpgrades", defaults.maxHealthUpgrades, 0),
-            LifeEssenceConfig.readFloat(doc, "healthBonusPerUpgrade", defaults.healthBonusPerUpgrade, 0.0f),
-            LifeEssenceConfig.readInt(doc, "maxSpeedUpgrades", defaults.maxSpeedUpgrades, 0),
-            LifeEssenceConfig.readInt(doc, "maxProjectileRainUpgrades", defaults.maxProjectileRainUpgrades, 0),
-            LifeEssenceConfig.readInt(doc, "maxLuckyUpgrades", defaults.maxLuckyUpgrades, 0),
-            LifeEssenceConfig.readInt(doc, "projectileRainBurstsOnPick", defaults.projectileRainBurstsOnPick, 0),
-            LifeEssenceConfig.readFloat(doc, "speedBonusPerUpgrade", defaults.speedBonusPerUpgrade, 0.0f),
-            LifeEssenceConfig.readFloat(doc, "maxSpeedMultiplier", defaults.maxSpeedMultiplier, 0.1f),
-            LifeEssenceConfig.readFloat(doc, "playerBaseSpeed", defaults.playerBaseSpeed, 0.1f),
-            LifeEssenceConfig.readFloat(doc, "staminaBonusPerSpeedUpgrade", defaults.staminaBonusPerSpeedUpgrade, 0.0f),
-            LifeEssenceConfig.readInt(doc, "luckyEssenceBonusPerRank", defaults.luckyEssenceBonusPerRank, 0),
-            LifeEssenceConfig.readLong(doc, "hudReadyDelayMs", defaults.hudReadyDelayMs, 0L),
-            LifeEssenceConfig.readLong(doc, "storeInputGraceMs", defaults.storeInputGraceMs, 0L),
-            LifeEssenceConfig.readString(doc, "joinWeaponItemId", defaults.joinWeaponItemId),
-            LifeEssenceConfig.readString(doc, "joinShortbowItemId", defaults.joinShortbowItemId),
-            LifeEssenceConfig.readString(doc, "joinArrowItemId", defaults.joinArrowItemId),
-            LifeEssenceConfig.readString(doc, "joinFoodItemId", defaults.joinFoodItemId),
-            LifeEssenceConfig.readString(doc, "joinArmorHeadItemId", defaults.joinArmorHeadItemId),
-            LifeEssenceConfig.readString(doc, "joinArmorChestItemId", defaults.joinArmorChestItemId),
-            LifeEssenceConfig.readString(doc, "joinArmorHandsItemId", defaults.joinArmorHandsItemId),
-            LifeEssenceConfig.readString(doc, "joinArmorLegsItemId", defaults.joinArmorLegsItemId),
-            LifeEssenceConfig.readInt(doc, "joinArrowQuantity", defaults.joinArrowQuantity, 0),
-            LifeEssenceConfig.readInt(doc, "joinFoodQuantity", defaults.joinFoodQuantity, 0),
-            LifeEssenceConfig.readInt(doc, "joinDefaultDurability", defaults.joinDefaultDurability, 1),
-            LifeEssenceConfig.readString(doc, "joinForcedWeatherId", defaults.joinForcedWeatherId)
+            ConfigUtils.readInt(essence, "perLevelBase", defaults.essencePerLevelBase, 1),
+            ConfigUtils.readInt(essence, "perLevelIncrement", defaults.essencePerLevelIncrement, 0),
+            ConfigUtils.readInt(essence, "perLevelMax", defaults.essencePerLevelMax, 1),
+            ConfigUtils.readString(ui, "defaultBossName", defaults.defaultBossName),
+            ConfigUtils.readFloat(store, "slowmoFactor", defaults.storeSlowmoFactor, 0.01f),
+            ConfigUtils.readInt(store, "openLevelStart", defaults.storeOpenLevelStart, 1),
+            ConfigUtils.readInt(store, "openLevelInterval", defaults.storeOpenLevelInterval, 1),
+            ConfigUtils.readInt(store, "openLevelMax", defaults.storeOpenLevelMax, 1),
+            ConfigUtils.readInt(upgrades, "maxFireRate", defaults.maxFireRateUpgrades, 0),
+            ConfigUtils.readFloat(upgrades, "fireRateMultiplierPerUpgrade", defaults.fireRateMultiplierPerUpgrade, 0.001f),
+            ConfigUtils.readInt(upgrades, "maxPickupRange", defaults.maxPickupRangeUpgrades, 0),
+            ConfigUtils.readFloat(upgrades, "pickupRangePerUpgrade", defaults.pickupRangePerUpgrade, 0.0f),
+            ConfigUtils.readFloat(upgrades, "maxPickupRangeBonus", defaults.maxPickupRangeBonus, 0.0f),
+            ConfigUtils.readInt(upgrades, "maxExtraProjectiles", defaults.maxExtraProjectiles, 0),
+            ConfigUtils.readInt(upgrades, "maxBounce", defaults.maxBounceUpgrades, 0),
+            ConfigUtils.readInt(upgrades, "maxWeaponDamage", defaults.maxWeaponDamageUpgrades, 0),
+            ConfigUtils.readFloat(upgrades, "weaponDamageBonusPerUpgrade", defaults.weaponDamageBonusPerUpgrade, 0.0f),
+            ConfigUtils.readInt(upgrades, "maxHealth", defaults.maxHealthUpgrades, 0),
+            ConfigUtils.readFloat(upgrades, "healthBonusPerUpgrade", defaults.healthBonusPerUpgrade, 0.0f),
+            ConfigUtils.readInt(upgrades, "maxSpeed", defaults.maxSpeedUpgrades, 0),
+            ConfigUtils.readInt(upgrades, "maxProjectileRain", defaults.maxProjectileRainUpgrades, 0),
+            ConfigUtils.readInt(upgrades, "maxLucky", defaults.maxLuckyUpgrades, 0),
+            ConfigUtils.readInt(upgrades, "projectileRainBurstsOnPick", defaults.projectileRainBurstsOnPick, 0),
+            ConfigUtils.readFloat(upgrades, "speedBonusPerUpgrade", defaults.speedBonusPerUpgrade, 0.0f),
+            ConfigUtils.readFloat(upgrades, "maxSpeedMultiplier", defaults.maxSpeedMultiplier, 0.1f),
+            ConfigUtils.readFloat(player, "baseSpeed", defaults.playerBaseSpeed, 0.1f),
+            ConfigUtils.readFloat(upgrades, "staminaBonusPerSpeedUpgrade", defaults.staminaBonusPerSpeedUpgrade, 0.0f),
+            ConfigUtils.readInt(upgrades, "luckyEssenceBonusPerRank", defaults.luckyEssenceBonusPerRank, 0),
+            ConfigUtils.readLong(ui, "hudReadyDelayMs", defaults.hudReadyDelayMs, 0L),
+            ConfigUtils.readLong(store, "inputGraceMs", defaults.storeInputGraceMs, 0L),
+            ConfigUtils.readString(joinLoadout, "weaponItemId", defaults.joinWeaponItemId),
+            ConfigUtils.readString(joinLoadout, "shortbowItemId", defaults.joinShortbowItemId),
+            ConfigUtils.readString(joinLoadout, "arrowItemId", defaults.joinArrowItemId),
+            ConfigUtils.readString(joinLoadout, "foodItemId", defaults.joinFoodItemId),
+            ConfigUtils.readString(joinLoadout, "armorHeadItemId", defaults.joinArmorHeadItemId),
+            ConfigUtils.readString(joinLoadout, "armorChestItemId", defaults.joinArmorChestItemId),
+            ConfigUtils.readString(joinLoadout, "armorHandsItemId", defaults.joinArmorHandsItemId),
+            ConfigUtils.readString(joinLoadout, "armorLegsItemId", defaults.joinArmorLegsItemId),
+            ConfigUtils.readInt(joinLoadout, "arrowQuantity", defaults.joinArrowQuantity, 0),
+            ConfigUtils.readInt(joinLoadout, "foodQuantity", defaults.joinFoodQuantity, 0),
+            ConfigUtils.readInt(joinLoadout, "defaultDurability", defaults.joinDefaultDurability, 1),
+            ConfigUtils.readString(joinLoadout, "forcedWeatherId", defaults.joinForcedWeatherId),
+            ConfigUtils.readFloat(camera, "distance", defaults.cameraDistance, 1.0f),
+            ConfigUtils.readFloat(camera, "positionLerpSpeed", defaults.cameraPositionLerpSpeed, 0.01f),
+            ConfigUtils.readFloat(camera, "rotationLerpSpeed", defaults.cameraRotationLerpSpeed, 0.01f),
+            ConfigUtils.readFloatUnbounded(camera, "pitch", defaults.cameraPitch),
+            ConfigUtils.readLong(player, "disconnectGracePeriodMs", defaults.disconnectGracePeriodMs, 0L),
+            ConfigUtils.readLong(player, "powerBonusEarlyDelayMs", defaults.powerBonusEarlyDelayMs, 0L),
+            ConfigUtils.readLong(player, "powerBonusLateDelayMs", defaults.powerBonusLateDelayMs, 0L),
+            ConfigUtils.readFloat(player, "speedLerpFactor", defaults.speedLerpFactor, 0.01f),
+            ConfigUtils.readFloat(upgrades, "minFireRateClamp", defaults.minFireRateClamp, 0.001f)
         );
-    }
-
-    private static int readInt(BsonDocument doc, String key, int defaultValue, int min) {
-        BsonValue value = doc.get(key);
-        if (value == null || !value.isNumber()) {
-            return defaultValue;
-        }
-        return Math.max(min, value.asNumber().intValue());
-    }
-
-    private static long readLong(BsonDocument doc, String key, long defaultValue, long min) {
-        BsonValue value = doc.get(key);
-        if (value == null || !value.isNumber()) {
-            return defaultValue;
-        }
-        return Math.max(min, value.asNumber().longValue());
-    }
-
-    private static float readFloat(BsonDocument doc, String key, float defaultValue, float min) {
-        BsonValue value = doc.get(key);
-        if (value == null || !value.isNumber()) {
-            return defaultValue;
-        }
-        float parsed = (float)value.asNumber().doubleValue();
-        if (!Float.isFinite(parsed)) {
-            return defaultValue;
-        }
-        return Math.max(min, parsed);
-    }
-
-    private static String readString(BsonDocument doc, String key, String defaultValue) {
-        BsonValue value = doc.get(key);
-        if (value == null || !value.isString()) {
-            return defaultValue;
-        }
-        String parsed = value.asString().getValue();
-        if (parsed == null || parsed.isBlank()) {
-            return defaultValue;
-        }
-        return parsed.trim();
     }
 }

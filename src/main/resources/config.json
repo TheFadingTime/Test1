@@ -1,21 +1,46 @@
-﻿{
-  "spawnCount": 5,
-  "spawnCountPerWave": 5,
-  "maxMobsPerWave": 20,
-  "spawnIntervalMs": 10000,
-  "minSpawnRadius": 30.0,
-  "maxSpawnRadius": 30.0,
-  "spawnYOffset": 0.5,
-  "maxMobHealth": 126.0,
-  "lifeEssenceItemId": "Ingredient_Life_Essence",
-  "hostileRoles": [
-    "Wave_Skeleton",
-    "Wave_Zombie_Burnt"
-  ],
+{
+  // Wave spawning
+  "spawning": {
+    "spawnCount": 5,
+    "spawnCountPerWave": 5,
+    "maxMobsPerWave": 20,
+    "spawnIntervalMs": 10000
+  },
+
+  // Spawn area geometry
+  "spawnArea": {
+    "minSpawnRadius": 30.0,
+    "maxSpawnRadius": 30.0,
+    "spawnYOffset": 0.5
+  },
+
+  // Mob stats
+  "mobs": {
+    "maxMobHealth": 126.0,
+    "waveHealthBonus": 10.0,          // extra HP per wave for non-boss mobs
+    "lifeEssenceItemId": "Ingredient_Life_Essence",
+    "hostileRoles": [
+      "Wave_Skeleton",
+      "Wave_Zombie_Burnt"
+    ]
+  },
+
+  // Player reconnect handling
+  "reconnect": {
+    "rejoinHoldMaxMs": 20000,         // max hold time for reconnecting players
+    "markerReattachRadius": 160.0,    // radius to reattach wave markers
+    "minSpawnGraceMs": 1000,          // min delay before respawning mobs after rejoin
+    "maxSpawnGraceMs": 5000,
+    "markerReattachDelayMs": 1500,
+    "disconnectDedupMs": 1200         // ignore duplicate disconnect events within this window
+  },
+
+  // Boss definitions
   "bosses": [
     {
       "id": "skeleton",
       "role": "Boss_Skeleton",
+      "displayName": "Giant Skeleton",
       "startWave": 5,
       "interval": 10,
       "scale": 4.0,
@@ -27,6 +52,7 @@
     {
       "id": "toad",
       "role": "Boss_Toad_Rhino_Magma",
+      "displayName": "Magma Toad",
       "startWave": 10,
       "interval": 10,
       "scale": 2.0,
@@ -38,10 +64,8 @@
     {
       "id": "wraith",
       "role": "Boss_Wraith",
-      "waves": [
-        40,
-        50
-      ],
+      "displayName": "Wraith",
+      "waves": [40, 50],
       "scale": 2.0,
       "healthBase": 1000.0,
       "healthPerStep": 500.0,
@@ -50,4 +74,3 @@
     }
   ]
 }
-

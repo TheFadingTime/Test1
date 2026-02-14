@@ -1,6 +1,7 @@
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.component.BossWaveComponent;
+import com.fadingtime.hytalemod.config.ConfigManager;
 import com.fadingtime.hytalemod.spawner.MobWaveSpawner;
 import com.fadingtime.hytalemod.ui.BossBarHud;
 import com.hypixel.hytale.component.ArchetypeChunk;
@@ -26,30 +27,40 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
 
+/*
+ * DATA-DRIVEN DESIGN: Boss display names now come from BossDefinition.displayName()
+ * in config.json, instead of a hardcoded switch statement mapping role names to strings.
+ *
+ * PRINCIPLE: Adding a new boss type should only require editing config.json, not Java code.
+ * The old switch had to be updated every time a boss was added — easy to forget.
+ *
+ * BEGINNER SMELL: "Parallel knowledge" — the config already defined boss roles, but the
+ * display names lived in a separate hardcoded switch. Now they're together in one place.
+ */
 public class BossHudSystem extends EntityTickingSystem<EntityStore> {
     private static final float UPDATE_EPSILON = 0.001f;
-
-    private static final String DEFAULT_BOSS_NAME = "Giant Skeleton";
-    private static final String TOAD_ROLE_NAME = "Toad_Rhino_Magma";
-    private static final String TOAD_BOSS_NAME = "Magma Toad";
-    private static final String SKELETON_ROLE_NAME = "Skeleton";
-    private static final String WRAITH_BOSS_NAME = "Wraith";
 
     private final ComponentType<EntityStore, BossWaveComponent> bossComponentType;
     private final ComponentType<EntityStore, EntityStatMap> entityStatMapComponentType;
     private final ComponentType<EntityStore, DeathComponent> deathComponentType;
     private final Query<EntityStore> query;
     private final MobWaveSpawner mobWaveSpawner;
+    private volatile String defaultBossName;
 
     private final ConcurrentMap<UUID, BossHudState> hudByPlayer = new ConcurrentHashMap<>();
     private final Set<UUID> suppressedPlayers = ConcurrentHashMap.newKeySet();
 
-    public BossHudSystem(ComponentType<EntityStore, BossWaveComponent> bossComponentType, MobWaveSpawner mobWaveSpawner) {
+    public BossHudSystem(ComponentType<EntityStore, BossWaveComponent> bossComponentType, MobWaveSpawner mobWaveSpawner, String defaultBossName) {
         this.bossComponentType = bossComponentType;
         this.entityStatMapComponentType = EntityStatMap.getComponentType();
         this.deathComponentType = DeathComponent.getComponentType();
         this.query = Query.and(this.bossComponentType, this.entityStatMapComponentType);
         this.mobWaveSpawner = mobWaveSpawner;
+        this.defaultBossName = defaultBossName;
+    }
+
+    public void updateDefaultBossName(String defaultBossName) {
+        this.defaultBossName = defaultBossName;
     }
 
     public Query<EntityStore> getQuery() {
@@ -81,7 +92,7 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
         var ratio = hp.asPercentage();
         ratio = Float.isFinite(ratio) ? Math.max(0.0f, Math.min(1.0f, ratio)) : 0.0f;
         var bossName = resolveBossName(store, bossRef);
-        if (bossName == null || bossName.isBlank()) bossName = DEFAULT_BOSS_NAME;
+        if (bossName == null || bossName.isBlank()) bossName = this.defaultBossName;
 
         var players = this.mobWaveSpawner.getPlayerRefsForOwner(ownerId);
         if (players.isEmpty()) return;
@@ -272,12 +283,12 @@ public class BossHudSystem extends EntityTickingSystem<EntityStore> {
         if (npc == null) return null;
         var role = npc.getRoleName();
         if (role == null) return null;
-        return switch (role) {
-            case TOAD_ROLE_NAME -> TOAD_BOSS_NAME;
-            case WRAITH_BOSS_NAME -> WRAITH_BOSS_NAME;
-            case SKELETON_ROLE_NAME -> DEFAULT_BOSS_NAME;
-            default -> null;
-        };
+        for (ConfigManager.BossDefinition definition : ConfigManager.getBossDefinitions()) {
+            if (role.equals(definition.role())) {
+                return definition.displayName();
+            }
+        }
+        return null;
     }
 
     private static class BossHudState {

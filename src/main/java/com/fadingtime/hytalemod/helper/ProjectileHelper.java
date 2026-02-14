@@ -24,7 +24,7 @@ public final class ProjectileHelper {
     private ProjectileHelper() {
     }
 
-    public static void fireProjectileWithBounce(@Nonnull Ref<EntityStore> ownerRef, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull ComponentType<EntityStore, UUIDComponent> uuidComponentType, @Nonnull Vector3d position, @Nonnull Vector3f rotation, float yawOffset, @Nonnull String projectileId, float speed, @Nonnull ComponentType<EntityStore, ProjectileBounceComponent> bounceComponentType, int remainingBounces, float bounceSpeedMultiplier, @Nonnull Logger logger) {
+    public static void fireProjectileWithBounce(@Nonnull Ref<EntityStore> ownerRef, @Nonnull CommandBuffer<EntityStore> commandBuffer, @Nonnull ComponentType<EntityStore, UUIDComponent> uuidComponentType, @Nonnull Vector3d position, @Nonnull Vector3f rotation, float yawOffset, @Nonnull String projectileId, float speed, @Nonnull ComponentType<EntityStore, ProjectileBounceComponent> bounceComponentType, int remainingBounces, float bounceSpeedMultiplier, double spawnYOffset, double spawnForwardOffset, @Nonnull Logger logger) {
         try {
             TimeResource timeResource = (TimeResource)commandBuffer.getResource(TimeResource.getResourceType());
             UUIDComponent uuidComponent = (UUIDComponent)commandBuffer.getComponent(ownerRef, uuidComponentType);
@@ -38,8 +38,8 @@ public final class ProjectileHelper {
             PhysicsMath.vectorFromAngles((float)yaw, (float)pitch, (Vector3d)direction);
             direction.normalize();
             Vector3d spawnPos = position.clone();
-            spawnPos.y += 1.0;
-            spawnPos.add(direction.x * 0.5, direction.y * 0.5, direction.z * 0.5);
+            spawnPos.y += spawnYOffset;
+            spawnPos.add(direction.x * spawnForwardOffset, direction.y * spawnForwardOffset, direction.z * spawnForwardOffset);
             Vector3f projectileRotation = new Vector3f();
             projectileRotation.setYaw(yaw);
             projectileRotation.setPitch(pitch);

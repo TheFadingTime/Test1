@@ -1,3 +1,13 @@
+/*
+ * DATA-DRIVEN DESIGN: Camera settings (distance, lerp speeds, pitch) now come from
+ * LifeEssenceConfig instead of hardcoded constants in forceTopdownCameraDirect().
+ *
+ * PRINCIPLE: Camera feel is a gameplay-tuning concern. Designers should be able to adjust
+ * the top-down view angle and zoom distance by editing life-essence.json, not Java code.
+ *
+ * BEGINNER SMELL: "Magic numbers" — 20.0f for distance, 0.2f for lerp, -1.5707964f for
+ * pitch were embedded directly in the method body with no explanation of what they control.
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.hypixel.hytale.component.ComponentAccessor;
@@ -23,10 +33,26 @@ import javax.annotation.Nonnull;
 
 public final class GamePauseController {
     private final AtomicInteger storePauseCount = new AtomicInteger(0);
-    private final float storeSlowmoFactor;
+    private volatile float storeSlowmoFactor;
+    private volatile float cameraDistance;
+    private volatile float cameraPositionLerpSpeed;
+    private volatile float cameraRotationLerpSpeed;
+    private volatile float cameraPitch;
 
-    public GamePauseController(float storeSlowmoFactor) {
+    public GamePauseController(float storeSlowmoFactor, float cameraDistance, float cameraPositionLerpSpeed, float cameraRotationLerpSpeed, float cameraPitch) {
         this.storeSlowmoFactor = storeSlowmoFactor;
+        this.cameraDistance = cameraDistance;
+        this.cameraPositionLerpSpeed = cameraPositionLerpSpeed;
+        this.cameraRotationLerpSpeed = cameraRotationLerpSpeed;
+        this.cameraPitch = cameraPitch;
+    }
+
+    public void updateConfig(float storeSlowmoFactor, float cameraDistance, float cameraPositionLerpSpeed, float cameraRotationLerpSpeed, float cameraPitch) {
+        this.storeSlowmoFactor = storeSlowmoFactor;
+        this.cameraDistance = cameraDistance;
+        this.cameraPositionLerpSpeed = cameraPositionLerpSpeed;
+        this.cameraRotationLerpSpeed = cameraRotationLerpSpeed;
+        this.cameraPitch = cameraPitch;
     }
 
     public float getStoreSlowmoFactor() {
@@ -67,9 +93,9 @@ public final class GamePauseController {
         settings.attachedToType = AttachedToType.LocalPlayer;
         settings.positionType = PositionType.AttachedToPlusOffset;
         settings.positionOffset = new Position(0.0, 0.0, 0.0);
-        settings.positionLerpSpeed = 0.2f;
-        settings.rotationLerpSpeed = 0.2f;
-        settings.distance = 20.0f;
+        settings.positionLerpSpeed = this.cameraPositionLerpSpeed;
+        settings.rotationLerpSpeed = this.cameraRotationLerpSpeed;
+        settings.distance = this.cameraDistance;
         settings.displayCursor = true;
         settings.isFirstPerson = false;
         settings.allowPitchControls = false;
@@ -77,7 +103,7 @@ public final class GamePauseController {
         settings.eyeOffset = true;
         settings.positionDistanceOffsetType = PositionDistanceOffsetType.DistanceOffset;
         settings.rotationType = RotationType.Custom;
-        settings.rotation = new Direction(0.0f, -1.5707964f, 0.0f);
+        settings.rotation = new Direction(0.0f, this.cameraPitch, 0.0f);
         settings.mouseInputType = MouseInputType.LookAtPlane;
         settings.mouseInputTargetType = MouseInputTargetType.None;
         settings.sendMouseMotion = false;

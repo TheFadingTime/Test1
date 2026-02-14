@@ -89,7 +89,7 @@ public final class JsonConfigLoader {
 
     private static BsonDocument tryParse(String json, String sourceName, Logger logger) {
         try {
-            return BsonDocument.parse(json);
+            return BsonDocument.parse(ConfigUtils.stripJsonComments(json));
         }
         catch (Exception exception) {
             logger.log(Level.WARNING, "Failed to parse " + sourceName, exception);

@@ -1,6 +1,27 @@
+/*
+ * REFACTOR: Cached repeated singleton lookups into a local variable.
+ *
+ * WHAT CHANGED:
+ *   - HytaleMod.getInstance().getLifeEssenceLevelSystem() was called 25 times
+ *     in build(). Now it's called once and stored in a local variable.
+ *   - Same treatment for handleDataEvent() (3 calls -> 1).
+ *
+ * PRINCIPLE (DRY — Don't Repeat Yourself):
+ *   When you see the same long expression repeated many times, it's a sign you
+ *   should store the result in a local variable. This is NOT premature optimization —
+ *   it's a readability improvement. The reader shouldn't have to parse
+ *   "HytaleMod.getInstance().getLifeEssenceLevelSystem()" 25 times to understand
+ *   that it's always the same object.
+ *
+ * BEGINNER SMELL: "Shotgun access" — calling a long chain of getters repeatedly
+ *   instead of caching the result. This is extremely common in AI-generated code
+ *   because each line is generated independently without awareness of what came before.
+ */
 package com.fadingtime.hytalemod.ui;
 
 import com.fadingtime.hytalemod.HytaleMod;
+import com.fadingtime.hytalemod.system.PlayerProgressionManager;
+import com.fadingtime.hytalemod.system.PowerUpType;
 import com.hypixel.hytale.component.Ref;
 import com.hypixel.hytale.component.Store;
 import com.hypixel.hytale.protocol.packets.interface_.CustomPageLifetime;
@@ -37,6 +58,12 @@ extends CustomUIPage {
         builder.set("#StoreTitle.Text", "LEVEL " + this.level + " - CHOOSE A POWER-UP!");
         PlayerRef playerRefComponent = (PlayerRef)store.getComponent(ref, PlayerRef.getComponentType());
         UUID playerId = playerRefComponent != null ? playerRefComponent.getUuid() : null;
+
+        // Cache the progression manager reference once instead of calling the
+        // getInstance().getLifeEssenceLevelSystem() chain 25 times.
+        // This makes the code dramatically easier to read AND avoids redundant lookups.
+        PlayerProgressionManager progression = HytaleMod.getInstance().getLifeEssenceLevelSystem();
+
         boolean fireRateMax = false;
         boolean pickupRangeMax = false;
         boolean extraProjectileMax = false;
@@ -49,40 +76,43 @@ extends CustomUIPage {
         int speedRank = 0;
         int luckyRank = 0;
         int projectileRainRank = 0;
-        int fireRateMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxFireRateUpgrades();
-        int pickupRangeMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxPickupRangeUpgrades();
-        int extraProjectileMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxExtraProjectileUpgrades();
-        int bounceMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxBounceUpgrades();
-        int weaponDamageMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxWeaponDamageUpgrades();
-        int healthMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxHealthUpgrades();
-        int speedMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxSpeedUpgrades();
-        int luckyMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxLuckyUpgrades();
-        int projectileRainMaxRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getMaxProjectileRainUpgrades();
+        int fireRateMaxRank = progression.getMaxFireRateUpgrades();
+        int pickupRangeMaxRank = progression.getMaxPickupRangeUpgrades();
+        int extraProjectileMaxRank = progression.getMaxExtraProjectileUpgrades();
+        int bounceMaxRank = progression.getMaxBounceUpgrades();
+        int weaponDamageMaxRank = progression.getMaxWeaponDamageUpgrades();
+        int healthMaxRank = progression.getMaxHealthUpgrades();
+        int speedMaxRank = progression.getMaxSpeedUpgrades();
+        int luckyMaxRank = progression.getMaxLuckyUpgrades();
+        int projectileRainMaxRank = progression.getMaxProjectileRainUpgrades();
         if (playerId != null) {
-            fireRateMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasFireRatePower(playerId, store);
-            pickupRangeMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasPickupRangePower(playerId, store);
-            extraProjectileMax = HytaleMod.getInstance().getLifeEssenceLevelSystem().hasExtraProjectilePower(playerId, store);
-            fireRateRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getFireRateRank(playerId, store);
-            pickupRangeRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getPickupRangeRank(playerId, store);
-            extraProjectileRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getExtraProjectileRank(playerId, store);
-            bounceRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getBounceRank(playerId, store);
-            weaponDamageRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getWeaponDamageRank(playerId, store);
-            healthRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getHealthRank(playerId, store);
-            speedRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getSpeedRank(playerId, store);
-            luckyRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getLuckyRank(playerId, store);
-            projectileRainRank = HytaleMod.getInstance().getLifeEssenceLevelSystem().getProjectileRainRank(playerId, store);
+            fireRateMax = progression.hasFireRatePower(playerId, store);
+            pickupRangeMax = progression.hasPickupRangePower(playerId, store);
+            extraProjectileMax = progression.hasExtraProjectilePower(playerId, store);
+            fireRateRank = progression.getFireRateRank(playerId, store);
+            pickupRangeRank = progression.getPickupRangeRank(playerId, store);
+            extraProjectileRank = progression.getExtraProjectileRank(playerId, store);
+            bounceRank = progression.getBounceRank(playerId, store);
+            weaponDamageRank = progression.getWeaponDamageRank(playerId, store);
+            healthRank = progression.getHealthRank(playerId, store);
+            speedRank = progression.getSpeedRank(playerId, store);
+            luckyRank = progression.getLuckyRank(playerId, store);
+            projectileRainRank = progression.getProjectileRainRank(playerId, store);
         }
+        // Use PowerUpType enum constants instead of raw strings. The key() method
+        // returns the wire-format string the UI expects, and label() gives the display name.
+        // This means the StoreOption definitions are now checked at compile time.
         ArrayList<StoreOption> options = new ArrayList<StoreOption>();
-        options.add(new StoreOption("fire_rate", "FIRE RATE", "+15% attack speed", "Store/Potion.png", fireRateRank, fireRateMaxRank, fireRateMax));
-        options.add(new StoreOption("pickup_range", "PICKUP RANGE", "+10 pickup range", "Store/LifeEssence.png", pickupRangeRank, pickupRangeMaxRank, pickupRangeMax));
-        options.add(new StoreOption("extra_projectile", "EXTRA PROJECTILE", "+1 projectile", "Store/Fireball.png", extraProjectileRank, extraProjectileMaxRank, extraProjectileMax));
-        options.add(new StoreOption("bounce", "BOUNCE", "+1 bounce", "Store/Fireball.png", bounceRank, bounceMaxRank, bounceRank >= bounceMaxRank));
-        options.add(new StoreOption("weapon_damage", "WEAPON DAMAGE", "+15 Damage", "Store/Weapon_Battleaxe_Mithril.png", weaponDamageRank, weaponDamageMaxRank, weaponDamageRank >= weaponDamageMaxRank));
-        options.add(new StoreOption("max_health", "MORE HEALTH", "+20 max health", "Store/Potion_Regen_Health.png", healthRank, healthMaxRank, healthRank >= healthMaxRank));
-        options.add(new StoreOption("move_speed", "MOVE SPEED", "+5% movement speed", "Store/Potion_Stamina.png", speedRank, speedMaxRank, speedRank >= speedMaxRank));
-        options.add(new StoreOption("lucky", "LUCKY", "+1 life essence gain", "Store/LifeEssence.png", luckyRank, luckyMaxRank, luckyRank >= luckyMaxRank));
+        options.add(new StoreOption(PowerUpType.FIRE_RATE, "+15% attack speed", "Store/Potion.png", fireRateRank, fireRateMaxRank, fireRateMax));
+        options.add(new StoreOption(PowerUpType.PICKUP_RANGE, "+10 pickup range", "Store/LifeEssence.png", pickupRangeRank, pickupRangeMaxRank, pickupRangeMax));
+        options.add(new StoreOption(PowerUpType.EXTRA_PROJECTILE, "+1 projectile", "Store/Fireball.png", extraProjectileRank, extraProjectileMaxRank, extraProjectileMax));
+        options.add(new StoreOption(PowerUpType.BOUNCE, "+1 bounce", "Store/Fireball.png", bounceRank, bounceMaxRank, bounceRank >= bounceMaxRank));
+        options.add(new StoreOption(PowerUpType.WEAPON_DAMAGE, "+15 Damage", "Store/Weapon_Battleaxe_Mithril.png", weaponDamageRank, weaponDamageMaxRank, weaponDamageRank >= weaponDamageMaxRank));
+        options.add(new StoreOption(PowerUpType.MAX_HEALTH, "+20 max health", "Store/Potion_Regen_Health.png", healthRank, healthMaxRank, healthRank >= healthMaxRank));
+        options.add(new StoreOption(PowerUpType.MOVE_SPEED, "+5% movement speed", "Store/Potion_Stamina.png", speedRank, speedMaxRank, speedRank >= speedMaxRank));
+        options.add(new StoreOption(PowerUpType.LUCKY, "+1 life essence gain", "Store/LifeEssence.png", luckyRank, luckyMaxRank, luckyRank >= luckyMaxRank));
         if (projectileRainRank < projectileRainMaxRank) {
-            options.add(new StoreOption("projectile_rain", "LAST RESORT...", "One-time sky rain in 25 radius", "Store/Fireball.png", projectileRainRank, projectileRainMaxRank, false));
+            options.add(new StoreOption(PowerUpType.PROJECTILE_RAIN, "One-time sky rain in 25 radius", "Store/Fireball.png", projectileRainRank, projectileRainMaxRank, false));
         }
         Collections.shuffle(options, ThreadLocalRandom.current());
         while (options.size() > 3) {
@@ -127,12 +157,17 @@ extends CustomUIPage {
             return;
         }
         UUID playerId = playerRefComponent.getUuid();
-        if (!HytaleMod.getInstance().getLifeEssenceLevelSystem().canAcceptStoreSelection(playerId)) {
+        // Same pattern: cache the reference to avoid repeating the chain 3 times.
+        PlayerProgressionManager progression = HytaleMod.getInstance().getLifeEssenceLevelSystem();
+        if (!progression.canAcceptStoreSelection(playerId)) {
             return;
         }
         String choice = doc.getString("choice").getValue();
-        HytaleMod.getInstance().getLifeEssenceLevelSystem().applyPowerUp(ref, store, choice);
-        HytaleMod.getInstance().getLifeEssenceLevelSystem().closeStoreForPlayer(ref, store);
+        progression.applyPowerUp(ref, store, choice);
+        progression.closeStoreForPlayer(ref, store);
+        // Fallback: if no StoreSessionManager session exists (e.g., opened via /powerupstore
+        // command), closeStoreForPlayer silently no-ops. Close the page directly to avoid a freeze.
+        this.requestClose();
     }
 
     public void requestClose() {
@@ -140,6 +175,10 @@ extends CustomUIPage {
     }
 
     private static class StoreOption {
+        // Now stores a PowerUpType instead of separate choice/title strings.
+        // The enum holds both the wire key and the display label, so we
+        // eliminated two separate string fields that had to stay in sync.
+        private final PowerUpType type;
         private final String choice;
         private final String title;
         private final String description;
@@ -148,9 +187,10 @@ extends CustomUIPage {
         private final int maxRank;
         private final boolean isMaxed;
 
-        private StoreOption(String choice, String title, String description, String icon, int rank, int maxRank, boolean isMaxed) {
-            this.choice = choice;
-            this.title = title;
+        private StoreOption(PowerUpType type, String description, String icon, int rank, int maxRank, boolean isMaxed) {
+            this.type = type;
+            this.choice = type.key();
+            this.title = type.label();
             this.description = description;
             this.icon = icon;
             this.rank = rank;

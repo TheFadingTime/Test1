@@ -32,14 +32,13 @@ public final class ConfigManager {
             loadedConfig = DEFAULTS;
         }
         apply(loadedConfig);
-        // TODO: Hot-reload would save us from restart spam while balancing.
     }
 
-    @Deprecated
-    public static synchronized void initialize(Path pluginFilePath, Logger logger) {
-        // Migration note: old code called MobSpawnConfig.initialize(...). Use ConfigManager.load(...) for new code.
-        load(pluginFilePath, logger);
-    }
+    // DELETED: @Deprecated initialize() method that just called load().
+    // LESSON (Zombie Code): Deprecated wrappers that only delegate to another method
+    // add confusion without value. If no callers exist, delete rather than deprecate.
+    // Keeping dead code "just in case" is a common beginner mistake — version control
+    // already preserves the history if you ever need it back.
 
     public static SpawnConfig get() {
         return CURRENT.get();
@@ -76,6 +75,12 @@ public final class ConfigManager {
         public final List<String> hostileRoles;
         public final String lifeEssenceItemId;
         public final List<BossDefinition> bosses;
+        public final long rejoinHoldMaxMs;
+        public final double markerReattachRadius;
+        public final long minSpawnGraceMs;
+        public final long maxSpawnGraceMs;
+        public final long markerReattachDelayMs;
+        public final long disconnectDedupMs;
 
         SpawnConfig(
             int spawnCount,
@@ -89,7 +94,13 @@ public final class ConfigManager {
             float waveHealthBonus,
             List<String> hostileRoles,
             String lifeEssenceItemId,
-            List<BossDefinition> bosses
+            List<BossDefinition> bosses,
+            long rejoinHoldMaxMs,
+            double markerReattachRadius,
+            long minSpawnGraceMs,
+            long maxSpawnGraceMs,
+            long markerReattachDelayMs,
+            long disconnectDedupMs
         ) {
             this.spawnCount = spawnCount;
             this.spawnCountPerWave = spawnCountPerWave;
@@ -103,6 +114,12 @@ public final class ConfigManager {
             this.hostileRoles = hostileRoles == null ? List.of() : hostileRoles;
             this.lifeEssenceItemId = lifeEssenceItemId == null || lifeEssenceItemId.isBlank() ? "Ingredient_Life_Essence" : lifeEssenceItemId;
             this.bosses = bosses == null ? List.of() : bosses;
+            this.rejoinHoldMaxMs = rejoinHoldMaxMs;
+            this.markerReattachRadius = markerReattachRadius;
+            this.minSpawnGraceMs = minSpawnGraceMs;
+            this.maxSpawnGraceMs = maxSpawnGraceMs;
+            this.markerReattachDelayMs = markerReattachDelayMs;
+            this.disconnectDedupMs = disconnectDedupMs;
         }
 
         static SpawnConfig defaults() {
@@ -119,7 +136,13 @@ public final class ConfigManager {
                 10.0f,
                 List.of("Spirit_Ember", "Skeleton", "Zombie"),
                 "Ingredient_Life_Essence",
-                defaultBosses()
+                defaultBosses(),
+                20000L,
+                160.0,
+                1000L,
+                5000L,
+                1500L,
+                1200L
             );
         }
     }
@@ -129,6 +152,7 @@ public final class ConfigManager {
         defaults.add(new BossDefinition(
             "skeleton",
             "Skeleton",
+            "Giant Skeleton",
             5,
             10,
             List.of(),
@@ -141,6 +165,7 @@ public final class ConfigManager {
         defaults.add(new BossDefinition(
             "toad",
             "Toad_Rhino_Magma",
+            "Magma Toad",
             10,
             10,
             List.of(),
@@ -152,6 +177,7 @@ public final class ConfigManager {
         ));
         defaults.add(new BossDefinition(
             "wraith",
+            "Wraith",
             "Wraith",
             40,
             0,
@@ -168,6 +194,7 @@ public final class ConfigManager {
     public static final class BossDefinition {
         private final String id;
         private final String role;
+        private final String displayName;
         private final int startWave;
         private final int interval;
         private final List<Integer> explicitWaves;
@@ -180,6 +207,7 @@ public final class ConfigManager {
         BossDefinition(
             String id,
             String role,
+            String displayName,
             int startWave,
             int interval,
             List<Integer> explicitWaves,
@@ -191,6 +219,7 @@ public final class ConfigManager {
         ) {
             this.id = id == null || id.isBlank() ? "boss" : id.trim().toLowerCase(Locale.ROOT);
             this.role = role == null || role.isBlank() ? "Skeleton" : role.trim();
+            this.displayName = displayName == null || displayName.isBlank() ? this.id : displayName.trim();
             this.startWave = startWave <= 0 ? 1 : startWave;
             this.interval = interval < 0 ? 0 : interval;
             this.explicitWaves = explicitWaves == null ? List.of() : explicitWaves;
@@ -208,6 +237,10 @@ public final class ConfigManager {
 
         public String role() {
             return this.role;
+        }
+
+        public String displayName() {
+            return this.displayName;
         }
 
         public int startWave() {

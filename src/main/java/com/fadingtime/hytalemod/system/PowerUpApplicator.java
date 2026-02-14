@@ -1,3 +1,16 @@
+/*
+ * REFACTOR: Replaced string-based dispatch with PowerUpType enum.
+ *
+ * WHAT CHANGED:
+ *   - applyChoice() and getChoiceRank() now take PowerUpType instead of String.
+ *   - The string if-else chains became switch statements on the enum.
+ *
+ * PRINCIPLE (Type Safety):
+ *   Strings are "stringly typed" — the compiler can't tell "fire_rate" from "Fire_rate".
+ *   Enums give you compile-time validation: PowerUpType.FIRE_RATE can't be misspelled.
+ *   The switch also documents every valid value in one place, whereas scattered string
+ *   comparisons require reading every if-branch to know what values exist.
+ */
 package com.fadingtime.hytalemod.system;
 
 import com.fadingtime.hytalemod.component.VampireShooterComponent;
@@ -41,6 +54,7 @@ public final class PowerUpApplicator {
     private final int luckyEssenceBonusPerRank;
     private final int maxProjectileRainUpgrades;
     private final int projectileRainBurstsOnPick;
+    private final float minFireRateClamp;
 
     public PowerUpApplicator(
         int maxExtraProjectiles,
@@ -62,7 +76,8 @@ public final class PowerUpApplicator {
         float staminaBonusPerSpeedUpgrade,
         int luckyEssenceBonusPerRank,
         int maxProjectileRainUpgrades,
-        int projectileRainBurstsOnPick
+        int projectileRainBurstsOnPick,
+        float minFireRateClamp
     ) {
         this.maxExtraProjectiles = Math.max(0, maxExtraProjectiles);
         this.maxBounceUpgrades = Math.max(0, maxBounceUpgrades);
@@ -85,6 +100,7 @@ public final class PowerUpApplicator {
         this.luckyEssenceBonusPerRank = Math.max(0, luckyEssenceBonusPerRank);
         this.maxProjectileRainUpgrades = Math.max(0, maxProjectileRainUpgrades);
         this.projectileRainBurstsOnPick = Math.max(1, projectileRainBurstsOnPick);
+        this.minFireRateClamp = Math.max(0.001f, minFireRateClamp);
     }
 
     public static PowerUpApplicator fromConfig(@Nonnull LifeEssenceConfig config) {
@@ -108,7 +124,8 @@ public final class PowerUpApplicator {
             config.staminaBonusPerSpeedUpgrade,
             config.luckyEssenceBonusPerRank,
             config.maxProjectileRainUpgrades,
-            config.projectileRainBurstsOnPick
+            config.projectileRainBurstsOnPick,
+            config.minFireRateClamp
         );
     }
 
@@ -130,40 +147,41 @@ public final class PowerUpApplicator {
         return state;
     }
 
-    public boolean applyChoice(@Nonnull PowerState state, @Nonnull String choice) {
-        if ("extra_projectile".equals(choice)) {
-            state.projectileCount = clampProjectileCount(state.projectileCount + 1);
-            return false;
+    // REFACTORED: String if-else chain -> enum switch.
+    // The switch on an enum is exhaustive — if someone adds a new PowerUpType
+    // and forgets to handle it here, the compiler will warn them. The old string
+    // chain would silently fall through and do nothing for unhandled types.
+    public boolean applyChoice(@Nonnull PowerState state, @Nonnull PowerUpType type) {
+        switch (type) {
+            case EXTRA_PROJECTILE:
+                state.projectileCount = clampProjectileCount(state.projectileCount + 1);
+                return false;
+            case FIRE_RATE:
+                state.fireRateMultiplier = clampFireRate(state.fireRateMultiplier * this.fireRateMultiplierPerUpgrade);
+                return false;
+            case PICKUP_RANGE:
+                state.pickupRangeBonus = clampPickupRange(state.pickupRangeBonus + this.pickupRangePerUpgrade);
+                return false;
+            case BOUNCE:
+                state.bounceBonus = clampBounceBonus(state.bounceBonus + 1);
+                return false;
+            case WEAPON_DAMAGE:
+                state.weaponDamageRank = clampWeaponDamageRank(state.weaponDamageRank + 1);
+                return false;
+            case MAX_HEALTH:
+                state.healthRank = clampHealthRank(state.healthRank + 1);
+                return false;
+            case MOVE_SPEED:
+                state.speedRank = clampSpeedRank(state.speedRank + 1);
+                return false;
+            case LUCKY:
+                state.luckyRank = clampLuckyRank(state.luckyRank + 1);
+                return false;
+            case PROJECTILE_RAIN:
+                return true;
+            default:
+                return false;
         }
-        if ("fire_rate".equals(choice)) {
-            state.fireRateMultiplier = clampFireRate(state.fireRateMultiplier * this.fireRateMultiplierPerUpgrade);
-            return false;
-        }
-        if ("pickup_range".equals(choice)) {
-            state.pickupRangeBonus = clampPickupRange(state.pickupRangeBonus + this.pickupRangePerUpgrade);
-            return false;
-        }
-        if ("bounce".equals(choice)) {
-            state.bounceBonus = clampBounceBonus(state.bounceBonus + 1);
-            return false;
-        }
-        if ("weapon_damage".equals(choice)) {
-            state.weaponDamageRank = clampWeaponDamageRank(state.weaponDamageRank + 1);
-            return false;
-        }
-        if ("max_health".equals(choice)) {
-            state.healthRank = clampHealthRank(state.healthRank + 1);
-            return false;
-        }
-        if ("move_speed".equals(choice)) {
-            state.speedRank = clampSpeedRank(state.speedRank + 1);
-            return false;
-        }
-        if ("lucky".equals(choice)) {
-            state.luckyRank = clampLuckyRank(state.luckyRank + 1);
-            return false;
-        }
-        return "projectile_rain".equals(choice);
     }
 
     public void applyToShooter(@Nonnull PowerState state, @Nonnull VampireShooterComponent shooter) {
@@ -239,35 +257,19 @@ public final class PowerUpApplicator {
         settings.verticalFlySpeed = Math.max(0.01f, settings.verticalFlySpeed * speedMultiplier);
     }
 
-    public int getChoiceRank(@Nonnull String choice, @Nonnull PowerState state) {
-        if ("extra_projectile".equals(choice)) {
-            return clampProjectileCount(state.projectileCount);
+    public int getChoiceRank(@Nonnull PowerUpType type, @Nonnull PowerState state) {
+        switch (type) {
+            case EXTRA_PROJECTILE: return clampProjectileCount(state.projectileCount);
+            case FIRE_RATE: return computeFireRateRank(state.fireRateMultiplier);
+            case PICKUP_RANGE: return computePickupRangeRank(state.pickupRangeBonus);
+            case BOUNCE: return clampBounceBonus(state.bounceBonus);
+            case WEAPON_DAMAGE: return clampWeaponDamageRank(state.weaponDamageRank);
+            case MAX_HEALTH: return clampHealthRank(state.healthRank);
+            case MOVE_SPEED: return clampSpeedRank(state.speedRank);
+            case LUCKY: return clampLuckyRank(state.luckyRank);
+            case PROJECTILE_RAIN: return state.projectileRainUsed ? 1 : 0;
+            default: return 0;
         }
-        if ("fire_rate".equals(choice)) {
-            return computeFireRateRank(state.fireRateMultiplier);
-        }
-        if ("pickup_range".equals(choice)) {
-            return computePickupRangeRank(state.pickupRangeBonus);
-        }
-        if ("bounce".equals(choice)) {
-            return clampBounceBonus(state.bounceBonus);
-        }
-        if ("weapon_damage".equals(choice)) {
-            return clampWeaponDamageRank(state.weaponDamageRank);
-        }
-        if ("max_health".equals(choice)) {
-            return clampHealthRank(state.healthRank);
-        }
-        if ("move_speed".equals(choice)) {
-            return clampSpeedRank(state.speedRank);
-        }
-        if ("lucky".equals(choice)) {
-            return clampLuckyRank(state.luckyRank);
-        }
-        if ("projectile_rain".equals(choice)) {
-            return state.projectileRainUsed ? 1 : 0;
-        }
-        return 0;
     }
 
     public int clampProjectileCount(int count) {
@@ -298,7 +300,7 @@ public final class PowerUpApplicator {
         if (!Float.isFinite(multiplier) || multiplier <= 0.0f) {
             return 1.0f;
         }
-        return Math.min(this.maxFireRateMultiplier, Math.max(0.1f, multiplier));
+        return Math.min(this.maxFireRateMultiplier, Math.max(this.minFireRateClamp, multiplier));
     }
 
     public float clampPickupRange(float bonus) {

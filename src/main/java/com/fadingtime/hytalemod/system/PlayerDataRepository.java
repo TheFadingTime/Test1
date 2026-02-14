@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
 
 public final class PlayerDataRepository {
     private final PlayerStateStoreManager stateStoreManager;
-    private final LevelingSystem levelingSystem;
-    private final PowerUpApplicator powerUpApplicator;
+    private volatile LevelingSystem levelingSystem;
+    private volatile PowerUpApplicator powerUpApplicator;
     private final ConcurrentMap<UUID, LevelingSystem.LevelProgress> levelByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, PowerUpApplicator.PowerState> powerByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, String> worldByPlayer = new ConcurrentHashMap<>();
@@ -22,6 +22,16 @@ public final class PlayerDataRepository {
         @Nonnull PowerUpApplicator powerUpApplicator
     ) {
         this.stateStoreManager = stateStoreManager;
+        this.levelingSystem = levelingSystem;
+        this.powerUpApplicator = powerUpApplicator;
+    }
+
+    /**
+     * Swaps the formula holders used when restoring/creating player state.
+     * Called from the config file watcher thread after a hot-reload.
+     * volatile fields guarantee the game thread sees the new references.
+     */
+    public void updateSystems(@Nonnull LevelingSystem levelingSystem, @Nonnull PowerUpApplicator powerUpApplicator) {
         this.levelingSystem = levelingSystem;
         this.powerUpApplicator = powerUpApplicator;
     }

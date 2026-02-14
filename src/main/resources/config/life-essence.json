@@ -1,44 +1,80 @@
 {
-  "essencePerLevelBase": 15,
-  "essencePerLevelIncrement": 5,
-  "essencePerLevelMax": 15,
-  "defaultBossName": "Giant Skeleton",
-  "storeSlowmoFactor": 0.2,
-  "storeOpenLevelStart": 5,
-  "storeOpenLevelInterval": 5,
-  "storeOpenLevelMax": 50,
-  "maxFireRateUpgrades": 4,
-  "fireRateMultiplierPerUpgrade": 1.15,
-  "maxPickupRangeUpgrades": 5,
-  "pickupRangePerUpgrade": 10.0,
-  "maxPickupRangeBonus": 50.0,
-  "maxExtraProjectiles": 10,
-  "maxBounceUpgrades": 3,
-  "maxWeaponDamageUpgrades": 2,
-  "weaponDamageBonusPerUpgrade": 15.0,
-  "maxHealthUpgrades": 3,
-  "healthBonusPerUpgrade": 20.0,
-  "maxSpeedUpgrades": 1,
-  "maxProjectileRainUpgrades": 1,
-  "maxLuckyUpgrades": 5,
-  "projectileRainBurstsOnPick": 2,
-  "speedBonusPerUpgrade": 0.05,
-  "maxSpeedMultiplier": 1.05,
-  "playerBaseSpeed": 10.0,
-  "staminaBonusPerSpeedUpgrade": 20.0,
-  "luckyEssenceBonusPerRank": 1,
-  "hudReadyDelayMs": 500,
-  "storeInputGraceMs": 400,
-  "joinWeaponItemId": "Weapon_Battleaxe_Mithril",
-  "joinShortbowItemId": "Weapon_Shortbow_Mithril",
-  "joinArrowItemId": "Weapon_Arrow_Crude",
-  "joinFoodItemId": "Food_Bread",
-  "joinArmorHeadItemId": "Armor_Mithril_Head",
-  "joinArmorChestItemId": "Armor_Mithril_Chest",
-  "joinArmorHandsItemId": "Armor_Mithril_Hands",
-  "joinArmorLegsItemId": "Armor_Mithril_Legs",
-  "joinArrowQuantity": 200,
-  "joinFoodQuantity": 25,
-  "joinDefaultDurability": 5000,
-  "joinForcedWeatherId": "Zone4_Lava_Fields"
+  // Leveling — how much essence players need to level up
+  "essence": {
+    "perLevelBase": 15,
+    "perLevelIncrement": 5,
+    "perLevelMax": 15          // essence cost cap per level
+  },
+
+  // Power-up store
+  "store": {
+    "slowmoFactor": 0.2,       // time dilation while store is open (0-1)
+    "openLevelStart": 5,       // first level that opens the store
+    "openLevelInterval": 5,    // levels between store openings
+    "openLevelMax": 50,        // last level that triggers the store
+    "inputGraceMs": 400        // ignore input after store opens (prevents accidental picks)
+  },
+
+  // Upgrade caps and per-upgrade bonuses
+  "upgrades": {
+    "maxFireRate": 4,
+    "fireRateMultiplierPerUpgrade": 1.15,
+    "minFireRateClamp": 0.1,            // lowest fire interval allowed
+    "maxPickupRange": 5,
+    "pickupRangePerUpgrade": 10.0,
+    "maxPickupRangeBonus": 50.0,
+    "maxExtraProjectiles": 10,
+    "maxBounce": 3,
+    "maxWeaponDamage": 2,
+    "weaponDamageBonusPerUpgrade": 15.0,
+    "maxHealth": 3,
+    "healthBonusPerUpgrade": 20.0,
+    "maxSpeed": 1,
+    "maxProjectileRain": 1,
+    "maxLucky": 5,
+    "projectileRainBurstsOnPick": 2,     // rain bursts granted per pickup
+    "speedBonusPerUpgrade": 0.05,
+    "maxSpeedMultiplier": 1.05,
+    "staminaBonusPerSpeedUpgrade": 20.0,
+    "luckyEssenceBonusPerRank": 1        // extra essence per kill per lucky rank
+  },
+
+  // Player base stats and timing
+  "player": {
+    "baseSpeed": 10.0,
+    "speedLerpFactor": 0.2,              // smoothing when speed changes
+    "disconnectGracePeriodMs": 1200,     // dedup window for disconnect events
+    "powerBonusEarlyDelayMs": 300,       // first power-bonus reapply after world join
+    "powerBonusLateDelayMs": 1200        // second reapply (catches late-loading components)
+  },
+
+  // Items given when a player joins the game
+  "joinLoadout": {
+    "weaponItemId": "Weapon_Battleaxe_Mithril",
+    "shortbowItemId": "Weapon_Shortbow_Mithril",
+    "arrowItemId": "Weapon_Arrow_Crude",
+    "foodItemId": "Food_Bread",
+    "armorHeadItemId": "Armor_Mithril_Head",
+    "armorChestItemId": "Armor_Mithril_Chest",
+    "armorHandsItemId": "Armor_Mithril_Hands",
+    "armorLegsItemId": "Armor_Mithril_Legs",
+    "arrowQuantity": 200,
+    "foodQuantity": 25,
+    "defaultDurability": 5000,
+    "forcedWeatherId": "Zone4_Lava_Fields"
+  },
+
+  // Camera settings for top-down view
+  "camera": {
+    "distance": 20.0,
+    "positionLerpSpeed": 0.2,
+    "rotationLerpSpeed": 0.2,
+    "pitch": -1.5707964        // radians (-PI/2 = straight down)
+  },
+
+  // HUD and display
+  "ui": {
+    "defaultBossName": "Giant Skeleton",   // fallback when boss has no displayName
+    "hudReadyDelayMs": 500                 // delay before showing HUD after world join
+  }
 }

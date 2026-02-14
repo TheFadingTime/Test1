@@ -6,6 +6,7 @@ import com.fadingtime.hytalemod.component.SpawnedByMobWaveComponent;
 import com.fadingtime.hytalemod.config.ConfigManager;
 import com.fadingtime.hytalemod.persistence.PlayerStateStore;
 import com.fadingtime.hytalemod.persistence.PlayerStateStoreManager;
+import com.fadingtime.hytalemod.system.WorldUtils;
 import com.hypixel.hytale.component.Component;
 import com.hypixel.hytale.component.ComponentType;
 import com.hypixel.hytale.component.Ref;
@@ -45,37 +46,83 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/*
+ * REFACTOR: Grouped 11 per-owner ConcurrentHashMaps + ownerLocks into a single
+ * OwnerWaveState object, stored in one ConcurrentMap<UUID, OwnerWaveState>.
+ *
+ * WHAT CHANGED:
+ *   - Deleted 11 separate ConcurrentHashMaps (waveCounts, bossActive, bossRefs,
+ *     rejoinHold, rejoinHoldUntilByOwner, worldByOwner, storeByOwner, nextSpawnAt,
+ *     taskGenerationByOwner, playersByOwner, participantsByOwner) + ownerLocks.
+ *   - Created OwnerWaveState inner class holding all per-owner mutable fields.
+ *   - clearOwnerRuntimeState() went from 10 lines to 2 — just remove the entry.
+ *   - Synchronization now uses the state object itself instead of a separate lock map.
+ *
+ * PRINCIPLE (State Cohesion):
+ *   When N maps are all keyed by the same ID and always read/written together,
+ *   they should be ONE object in ONE map. Benefits:
+ *     1. Can't forget to update one of N maps when adding/removing state.
+ *     2. Cleanup is atomic: remove the object, not 11 individual entries.
+ *     3. Self-documenting: "what state does an owner have?" is answered by one class.
+ *
+ * BEGINNER SMELL: "Parallel maps" — multiple ConcurrentHashMaps keyed by the same ID.
+ *   This is extremely common in AI-generated code. The AI sees "I need a wave count
+ *   per owner" and writes a new ConcurrentHashMap. Then "I need a boss ref per owner"
+ *   — another map. Before long you have 17 maps and clearOwnerRuntimeState() has to
+ *   manually remove from each one. Miss one and you have a memory leak.
+ */
 public class MobWaveSpawner {
-    private static final long REJOIN_HOLD_MAX_MS = 20000L;
-    private static final double MARKER_REATTACH_RADIUS = 160.0;
-    private static final double MARKER_REATTACH_RADIUS_SQ = MARKER_REATTACH_RADIUS * MARKER_REATTACH_RADIUS;
+
+    /*
+     * All mutable per-owner wave state, grouped into one object.
+     *
+     * BEFORE: 11 separate ConcurrentHashMaps (waveCounts, bossActive, bossRefs, etc.)
+     * AFTER:  1 ConcurrentHashMap<UUID, OwnerWaveState>
+     *
+     * WHY volatile on primitive fields:
+     *   These fields are written on the world thread and read from scheduled executor
+     *   threads. volatile ensures visibility across threads. AtomicInteger is used for
+     *   fields that need atomic read-modify-write (increment).
+     *
+     * WHY this object also serves as the synchronization lock:
+     *   The old code had a separate ownerLocks map just for locking. But the state
+     *   object IS the thing we're protecting, so synchronizing on it directly is simpler
+     *   and removes an entire map.
+     */
+    static final class OwnerWaveState {
+        final AtomicInteger waveCount = new AtomicInteger(0);
+        volatile boolean bossActive;
+        volatile Ref<EntityStore> bossRef;
+        volatile boolean rejoinHold;
+        volatile long rejoinHoldUntil;
+        volatile String worldKey;
+        volatile Store<EntityStore> store;
+        volatile long nextSpawnAt;
+        final AtomicInteger taskGeneration = new AtomicInteger(0);
+        // ConcurrentHashMap.newKeySet() — thread-safe set for concurrent iteration.
+        final Set<UUID> activeMembers = ConcurrentHashMap.newKeySet();
+        final Set<UUID> allParticipants = ConcurrentHashMap.newKeySet();
+    }
+
     private final JavaPlugin plugin;
     private final ComponentType<EntityStore, SpawnedByMobWaveComponent> spawnedMarkerType;
     private final ComponentType<EntityStore, BossWaveComponent> bossMarkerType;
     private final PlayerStateStoreManager stateStoreManager;
-    private final ConcurrentMap<UUID, ScheduledFuture<?>> spawnTasks = new ConcurrentHashMap();
-    private final List<String> spawnableRoles = new ArrayList<String>();
-    private final Set<String> trackedWaveRoles = new HashSet<String>();
-    private final ConcurrentMap<UUID, Object> ownerLocks = new ConcurrentHashMap<UUID, Object>();
-    private final ConcurrentMap<UUID, Integer> waveCounts = new ConcurrentHashMap<UUID, Integer>();
-    private final ConcurrentMap<UUID, Boolean> bossActive = new ConcurrentHashMap<UUID, Boolean>();
-    private final ConcurrentMap<UUID, Ref<EntityStore>> bossRefs = new ConcurrentHashMap<UUID, Ref<EntityStore>>();
-    private final ConcurrentMap<UUID, Ref<EntityStore>> playerRefs = new ConcurrentHashMap<UUID, Ref<EntityStore>>();
-    private final ConcurrentMap<UUID, UUID> ownerByPlayer = new ConcurrentHashMap<UUID, UUID>();
-    private final ConcurrentMap<UUID, Set<UUID>> playersByOwner = new ConcurrentHashMap<UUID, Set<UUID>>();
-    private final ConcurrentMap<UUID, Set<UUID>> participantsByOwner = new ConcurrentHashMap<UUID, Set<UUID>>();
-    private final ConcurrentMap<UUID, Store<EntityStore>> storeByOwner = new ConcurrentHashMap<UUID, Store<EntityStore>>();
-    private final ConcurrentMap<UUID, Boolean> rejoinHold = new ConcurrentHashMap<UUID, Boolean>();
-    private final ConcurrentMap<UUID, String> worldByOwner = new ConcurrentHashMap<UUID, String>();
-    private final ConcurrentMap<UUID, Long> nextSpawnAt = new ConcurrentHashMap<UUID, Long>();
-    private final ConcurrentMap<UUID, Long> disconnectHandledAt = new ConcurrentHashMap<UUID, Long>();
-    private final ConcurrentMap<UUID, Long> rejoinHoldUntilByOwner = new ConcurrentHashMap<UUID, Long>();
-    private final ConcurrentMap<UUID, Integer> taskGenerationByOwner = new ConcurrentHashMap<UUID, Integer>();
+    private final ConcurrentMap<UUID, ScheduledFuture<?>> spawnTasks = new ConcurrentHashMap<>();
+    private final List<String> spawnableRoles = new ArrayList<>();
+    private final Set<String> trackedWaveRoles = new HashSet<>();
+    // 11 per-owner maps + ownerLocks → 1 map of state objects.
+    private final ConcurrentMap<UUID, OwnerWaveState> ownerStates = new ConcurrentHashMap<>();
+    // Per-player lookups — these have independent lifecycles so they stay as simple maps.
+    private final ConcurrentMap<UUID, Ref<EntityStore>> playerRefs = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, UUID> ownerByPlayer = new ConcurrentHashMap<>();
+    private final ConcurrentMap<UUID, Long> disconnectHandledAt = new ConcurrentHashMap<>();
 
     public MobWaveSpawner(@Nonnull JavaPlugin plugin, @Nonnull ComponentType<EntityStore, SpawnedByMobWaveComponent> spawnedMarkerType, @Nonnull ComponentType<EntityStore, BossWaveComponent> bossMarkerType) {
         this.plugin = plugin;
@@ -112,7 +159,6 @@ public class MobWaveSpawner {
         }
         try {
             world.execute(() -> {
-                long minNextSpawn;
                 if (!playerRef.isValid()) {
                     return;
                 }
@@ -127,45 +173,40 @@ public class MobWaveSpawner {
                 UUID playerId = playerRefComponent.getUuid();
                 this.disconnectHandledAt.remove(playerId);
                 this.playerRefs.put(playerId, (Ref<EntityStore>)playerRef);
-                if (!this.isGameplayWorld((Store<EntityStore>)worldStore)) {
-                    this.playerRefs.remove(playerId);
-                    UUID oldOwnerId = (UUID)this.ownerByPlayer.remove(playerId);
-                    if (oldOwnerId != null && this.removePlayerFromOwner(oldOwnerId, playerId)) {
-                        this.clearOwnerRuntimeState(oldOwnerId);
-                    }
-                    return;
-                }
-                String worldKey = MobWaveSpawner.getWorldKey((Store<EntityStore>)worldStore);
+                String worldKey = WorldUtils.getWorldKey((Store<EntityStore>)worldStore);
                 UUID ownerId = MobWaveSpawner.getSharedOwnerId(worldKey);
                 this.assignPlayerToOwner(playerId, ownerId);
-                synchronized (this.getOwnerLock(ownerId)) {
-                    this.worldByOwner.put(ownerId, worldKey);
-                    this.storeByOwner.put(ownerId, (Store<EntityStore>)worldStore);
-                    this.rejoinHold.put(ownerId, true);
-                    this.rejoinHoldUntilByOwner.put(ownerId, System.currentTimeMillis() + REJOIN_HOLD_MAX_MS);
+                // Synchronize on the state object itself — no separate lock map needed.
+                OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
+                ConfigManager.SpawnConfig cfg = ConfigManager.get();
+                synchronized (ownerState) {
+                    ownerState.worldKey = worldKey;
+                    ownerState.store = (Store<EntityStore>)worldStore;
+                    ownerState.rejoinHold = true;
+                    ownerState.rejoinHoldUntil = System.currentTimeMillis() + cfg.rejoinHoldMaxMs;
                 }
                 PlayerStateStore stateStore = this.stateStoreManager.getStore(worldKey);
                 int savedWave = Math.max(0, stateStore.loadWaveCount(ownerId));
-                this.waveCounts.put(ownerId, savedWave);
+                ownerState.waveCount.set(savedWave);
                 UUID savedBossId = stateStore.loadBossId(ownerId);
                 long savedNextSpawn = stateStore.loadNextSpawnAt(ownerId);
                 long now = System.currentTimeMillis();
-                ConfigManager.SpawnConfig cfg = ConfigManager.get();
                 if (savedNextSpawn <= 0L) {
                     savedNextSpawn = now + cfg.spawnIntervalMs;
                 }
-                long spawnGraceMs = Math.max(1000L, Math.min(5000L, cfg.spawnIntervalMs / 2L));
-                if (savedNextSpawn < (minNextSpawn = now + spawnGraceMs)) {
+                long spawnGraceMs = Math.max(cfg.minSpawnGraceMs, Math.min(cfg.maxSpawnGraceMs, cfg.spawnIntervalMs / 2L));
+                long minNextSpawn = now + spawnGraceMs;
+                if (savedNextSpawn < minNextSpawn) {
                     savedNextSpawn = minNextSpawn;
                 }
                 stateStore.saveNextSpawnAt(ownerId, savedNextSpawn);
-                this.nextSpawnAt.put(ownerId, savedNextSpawn);
+                ownerState.nextSpawnAt = savedNextSpawn;
                 if (savedWave <= 0 && savedBossId == null) {
-                    synchronized (this.getOwnerLock(ownerId)) {
-                        this.bossActive.remove(ownerId);
-                        this.bossRefs.remove(ownerId);
-                        this.rejoinHold.put(ownerId, false);
-                        this.rejoinHoldUntilByOwner.remove(ownerId);
+                    synchronized (ownerState) {
+                        ownerState.bossActive = false;
+                        ownerState.bossRef = null;
+                        ownerState.rejoinHold = false;
+                        ownerState.rejoinHoldUntil = 0L;
                     }
                     return;
                 }
@@ -173,11 +214,11 @@ public class MobWaveSpawner {
                     this.reattachNearbyWaveMarkers((Store<EntityStore>)worldStore, (Ref<EntityStore>)playerRef);
                     this.despawnTrackedWaveEntities((Store<EntityStore>)worldStore);
                     stateStore.saveBossId(ownerId, null);
-                    synchronized (this.getOwnerLock(ownerId)) {
-                        this.bossActive.remove(ownerId);
-                        this.bossRefs.remove(ownerId);
-                        this.rejoinHold.put(ownerId, false);
-                        this.rejoinHoldUntilByOwner.remove(ownerId);
+                    synchronized (ownerState) {
+                        ownerState.bossActive = false;
+                        ownerState.bossRef = null;
+                        ownerState.rejoinHold = false;
+                        ownerState.rejoinHoldUntil = 0L;
                     }
                     return;
                 }
@@ -189,7 +230,7 @@ public class MobWaveSpawner {
                                 return;
                             }
                             Store delayedStore = playerRef.getStore();
-                            if (delayedStore == null || !this.isGameplayWorld((Store<EntityStore>)delayedStore)) {
+                            if (delayedStore == null) {
                                 return;
                             }
                             this.reattachNearbyWaveMarkers((Store<EntityStore>)delayedStore, (Ref<EntityStore>)playerRef);
@@ -198,7 +239,7 @@ public class MobWaveSpawner {
                     catch (IllegalThreadStateException exception) {
                         HytaleMod.LOGGER.log(Level.FINE, "Skipped delayed marker reattach because world thread state changed.", exception);
                     }
-                }, 1500L, TimeUnit.MILLISECONDS);
+                }, cfg.markerReattachDelayMs, TimeUnit.MILLISECONDS);
                 this.restoreBossFromSave(ownerId, (Store<EntityStore>)worldStore, stateStore);
                 this.syncBossState(ownerId, (Store<EntityStore>)worldStore);
                 if (!this.isOwnerTaskRunning(ownerId)) {
@@ -219,7 +260,7 @@ public class MobWaveSpawner {
         UUID playerId = playerRefComponent.getUuid();
         long now = System.currentTimeMillis();
         Long previousHandledAt = (Long)this.disconnectHandledAt.put(playerId, now);
-        if (previousHandledAt != null && now - previousHandledAt.longValue() < 2000L) {
+        if (previousHandledAt != null && now - previousHandledAt.longValue() < ConfigManager.get().disconnectDedupMs) {
             return;
         }
         this.playerRefs.remove(playerId);
@@ -232,7 +273,8 @@ public class MobWaveSpawner {
         }
         boolean ownerEmpty = this.removePlayerFromOwner(ownerId, playerId);
         if (ownerEmpty) {
-            this.resetOwnerProgress(ownerId, (Store<EntityStore>)this.storeByOwner.get(ownerId));
+            OwnerWaveState ownerState = this.getOwnerState(ownerId);
+            this.resetOwnerProgress(ownerId, ownerState != null ? ownerState.store : null);
             if (HytaleMod.getInstance().getBossHudSystem() != null) {
                 HytaleMod.getInstance().getBossHudSystem().clearBossHud(ownerId);
             }
@@ -244,12 +286,13 @@ public class MobWaveSpawner {
     }
 
     private int scheduleForOwner(UUID ownerId) {
-        ScheduledFuture<?> runningTask = (ScheduledFuture)this.spawnTasks.get(ownerId);
+        ScheduledFuture<?> runningTask = this.spawnTasks.get(ownerId);
+        OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
         if (runningTask != null && !runningTask.isCancelled() && !runningTask.isDone()) {
-            Integer existingGeneration = (Integer)this.taskGenerationByOwner.get(ownerId);
-            if (existingGeneration == null || existingGeneration <= 0) {
-                this.taskGenerationByOwner.putIfAbsent(ownerId, 1);
-                existingGeneration = (Integer)this.taskGenerationByOwner.getOrDefault(ownerId, 1);
+            int existingGeneration = ownerState.taskGeneration.get();
+            if (existingGeneration <= 0) {
+                ownerState.taskGeneration.compareAndSet(0, 1);
+                existingGeneration = ownerState.taskGeneration.get();
             }
             return existingGeneration;
         }
@@ -258,24 +301,27 @@ public class MobWaveSpawner {
         }
         long now = System.currentTimeMillis();
         ConfigManager.SpawnConfig cfg = ConfigManager.get();
-        long target = this.nextSpawnAt.getOrDefault(ownerId, now + cfg.spawnIntervalMs);
+        long target = ownerState.nextSpawnAt > 0 ? ownerState.nextSpawnAt : now + cfg.spawnIntervalMs;
         long initialDelay = Math.max(0L, target - now);
-        int generation = this.taskGenerationByOwner.merge(ownerId, 1, Integer::sum);
+        int generation = ownerState.taskGeneration.incrementAndGet();
         ScheduledFuture<?> task = HytaleServer.SCHEDULED_EXECUTOR.scheduleWithFixedDelay(() -> this.spawnWaveSafe(ownerId, generation), initialDelay, cfg.spawnIntervalMs, TimeUnit.MILLISECONDS);
         ScheduledFuture<?> existing = this.spawnTasks.putIfAbsent(ownerId, task);
         if (existing != null) {
             task.cancel(false);
-            return this.taskGenerationByOwner.getOrDefault(ownerId, generation);
+            return ownerState.taskGeneration.get();
         }
         return generation;
     }
 
     private void cancelTask(UUID ownerId) {
-        ScheduledFuture task = (ScheduledFuture)this.spawnTasks.remove(ownerId);
+        ScheduledFuture task = this.spawnTasks.remove(ownerId);
         if (task != null) {
             task.cancel(false);
         }
-        this.taskGenerationByOwner.merge(ownerId, 1, Integer::sum);
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState != null) {
+            ownerState.taskGeneration.incrementAndGet();
+        }
     }
 
     private boolean isOwnerTaskRunning(@Nonnull UUID ownerId) {
@@ -284,7 +330,7 @@ public class MobWaveSpawner {
     }
 
     private void spawnWaveSafe(UUID ownerId, int generation) {
-        if (this.taskGenerationByOwner.getOrDefault(ownerId, 0) != generation) {
+        if (this.getTaskGeneration(ownerId) != generation) {
             return;
         }
         try {
@@ -296,15 +342,11 @@ public class MobWaveSpawner {
     }
 
     private void spawnWave(UUID ownerId, int generation) {
-        if (this.taskGenerationByOwner.getOrDefault(ownerId, 0) != generation) {
+        if (this.getTaskGeneration(ownerId) != generation) {
             return;
         }
         Ref<EntityStore> playerRef = this.getAnyActivePlayerRef(ownerId);
         if (playerRef == null || !playerRef.isValid()) {
-            this.clearOwnerRuntimeState(ownerId);
-            return;
-        }
-        if (!playerRef.isValid()) {
             this.clearOwnerRuntimeState(ownerId);
             return;
         }
@@ -315,7 +357,7 @@ public class MobWaveSpawner {
         }
         World world = ((EntityStore)store.getExternalData()).getWorld();
         world.execute(() -> {
-            if (this.taskGenerationByOwner.getOrDefault(ownerId, 0) != generation) {
+            if (this.getTaskGeneration(ownerId) != generation) {
                 return;
             }
             Ref<EntityStore> activeRef = this.getAnyActivePlayerRef(ownerId);
@@ -328,27 +370,28 @@ public class MobWaveSpawner {
                 this.clearOwnerRuntimeState(ownerId);
                 return;
             }
-            if (!this.isGameplayWorld((Store<EntityStore>)worldStore)) {
+            OwnerWaveState ownerState = this.getOwnerState(ownerId);
+            if (ownerState == null) {
                 this.clearOwnerRuntimeState(ownerId);
                 return;
             }
-            if (Boolean.TRUE.equals(this.bossActive.get(ownerId))) {
+            if (ownerState.bossActive) {
                 if (this.isBossAlive(ownerId, (Store<EntityStore>)worldStore)) {
                     return;
                 }
-                this.bossActive.put(ownerId, false);
-                this.bossRefs.remove(ownerId);
+                ownerState.bossActive = false;
+                ownerState.bossRef = null;
             }
-            if (Boolean.TRUE.equals(this.rejoinHold.get(ownerId))) {
-                long holdUntil = this.rejoinHoldUntilByOwner.getOrDefault(ownerId, 0L);
+            if (ownerState.rejoinHold) {
+                long holdUntil = ownerState.rejoinHoldUntil;
                 long now = System.currentTimeMillis();
                 if (this.isBossAlive(ownerId, (Store<EntityStore>)worldStore) || this.hasActiveWaveMobs((Store<EntityStore>)worldStore)) {
                     if (holdUntil <= 0L || now < holdUntil) {
                         return;
                     }
                 }
-                this.rejoinHold.put(ownerId, false);
-                this.rejoinHoldUntilByOwner.remove(ownerId);
+                ownerState.rejoinHold = false;
+                ownerState.rejoinHoldUntil = 0L;
                 return;
             }
             TransformComponent transform = (TransformComponent)worldStore.getComponent(activeRef, TransformComponent.getComponentType());
@@ -361,12 +404,12 @@ public class MobWaveSpawner {
             }
             Vector3d playerPos = transform.getPosition();
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            int wave = this.waveCounts.merge(ownerId, 1, Integer::sum);
-            PlayerStateStore stateStore = this.stateStoreManager.getStore(MobWaveSpawner.getWorldKey((Store<EntityStore>)worldStore));
+            int wave = ownerState.waveCount.incrementAndGet();
+            PlayerStateStore stateStore = this.stateStoreManager.getStore(WorldUtils.getWorldKey((Store<EntityStore>)worldStore));
             stateStore.saveWaveCount(ownerId, wave);
             ConfigManager.SpawnConfig cfg = ConfigManager.get();
             long nextAt = System.currentTimeMillis() + cfg.spawnIntervalMs;
-            this.nextSpawnAt.put(ownerId, nextAt);
+            ownerState.nextSpawnAt = nextAt;
             stateStore.saveNextSpawnAt(ownerId, nextAt);
             ConfigManager.BossDefinition bossDefinition = this.findBossForWave(cfg, wave);
             if (bossDefinition != null) {
@@ -406,9 +449,10 @@ public class MobWaveSpawner {
         Ref bossRef = (Ref)spawned.first();
         store.addComponent(bossRef, this.spawnedMarkerType, new SpawnedByMobWaveComponent());
         store.addComponent(bossRef, this.bossMarkerType, new BossWaveComponent(ownerId));
-        this.bossActive.put(ownerId, true);
-        this.bossRefs.put(ownerId, (Ref<EntityStore>)bossRef);
-        PlayerStateStore stateStore = this.stateStoreManager.getStore(MobWaveSpawner.getWorldKey(store));
+        OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
+        ownerState.bossActive = true;
+        ownerState.bossRef = (Ref<EntityStore>)bossRef;
+        PlayerStateStore stateStore = this.stateStoreManager.getStore(WorldUtils.getWorldKey(store));
         UUIDComponent uuidComponent = (UUIDComponent)store.getComponent(bossRef, UUIDComponent.getComponentType());
         if (uuidComponent != null) {
             stateStore.saveBossId(ownerId, uuidComponent.getUuid());
@@ -441,9 +485,8 @@ public class MobWaveSpawner {
         npc.setAppearance(npcRef, modelAsset, store);
     }
 
-    private boolean isGameplayWorld(@Nonnull Store<EntityStore> store) {
-        return true;
-    }
+    // DELETED: isGameplayWorld() — always returned true. See PlayerProgressionManager
+    // for the same deletion and the teaching explanation about feature flag stubs.
 
     private void reattachNearbyWaveMarkers(@Nonnull Store<EntityStore> store, @Nonnull Ref<EntityStore> playerRef) {
         TransformComponent playerTransform = (TransformComponent)store.getComponent(playerRef, TransformComponent.getComponentType());
@@ -463,7 +506,8 @@ public class MobWaveSpawner {
                 String roleName = npc.getRole() != null ? npc.getRole().getRoleName() : npc.getRoleName();
                 if (roleName == null || !this.trackedWaveRoles.contains(roleName)) continue;
                 Vector3d npcPos = npcTransform.getPosition();
-                if (MobWaveSpawner.distanceSquared(playerPos, npcPos) > MARKER_REATTACH_RADIUS_SQ) continue;
+                double reattachRadius = ConfigManager.get().markerReattachRadius;
+                if (MobWaveSpawner.distanceSquared(playerPos, npcPos) > reattachRadius * reattachRadius) continue;
                 buffer.addComponent(ref, this.spawnedMarkerType, new SpawnedByMobWaveComponent());
                 ++reattachedCount[0];
             }
@@ -486,11 +530,14 @@ public class MobWaveSpawner {
     }
 
     public void notifyBossDefeated(UUID ownerId) {
-        this.bossActive.put(ownerId, false);
-        this.bossRefs.remove(ownerId);
-        String worldKey = (String)this.worldByOwner.get(ownerId);
-        if (worldKey != null) {
-            this.stateStoreManager.getStore(worldKey).saveBossId(ownerId, null);
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState == null) {
+            return;
+        }
+        ownerState.bossActive = false;
+        ownerState.bossRef = null;
+        if (ownerState.worldKey != null) {
+            this.stateStoreManager.getStore(ownerState.worldKey).saveBossId(ownerId, null);
         }
     }
 
@@ -510,12 +557,13 @@ public class MobWaveSpawner {
             }
         });
         Ref<EntityStore> bossRef = foundBoss.get();
+        OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
         if (bossRef != null && bossRef.isValid()) {
-            this.bossActive.put(ownerId, true);
-            this.bossRefs.put(ownerId, (Ref<EntityStore>)bossRef);
+            ownerState.bossActive = true;
+            ownerState.bossRef = bossRef;
         } else {
-            this.bossActive.put(ownerId, false);
-            this.bossRefs.remove(ownerId);
+            ownerState.bossActive = false;
+            ownerState.bossRef = null;
         }
     }
 
@@ -545,8 +593,9 @@ public class MobWaveSpawner {
             if (worldStore.getComponent(bossRef, this.spawnedMarkerType) == null) {
                 worldStore.addComponent(bossRef, this.spawnedMarkerType, new SpawnedByMobWaveComponent());
             }
-            this.bossActive.put(ownerId, true);
-            this.bossRefs.put(ownerId, (Ref<EntityStore>)bossRef);
+            OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
+            ownerState.bossActive = true;
+            ownerState.bossRef = (Ref<EntityStore>)bossRef;
         });
     }
 
@@ -582,23 +631,27 @@ public class MobWaveSpawner {
 
     @Nonnull
     public List<Ref<EntityStore>> getPlayerRefsForOwner(@Nonnull UUID ownerId) {
-        ArrayList<Ref<EntityStore>> refs = new ArrayList<Ref<EntityStore>>();
-        Set<UUID> members = (Set)this.playersByOwner.get(ownerId);
-        if (members == null || members.isEmpty()) {
+        ArrayList<Ref<EntityStore>> refs = new ArrayList<>();
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState == null) {
+            return refs;
+        }
+        Set<UUID> members = ownerState.activeMembers;
+        if (members.isEmpty()) {
             return refs;
         }
         ArrayList<UUID> staleMembers = null;
         for (UUID memberId : members) {
-            Ref<EntityStore> memberRef = (Ref)this.playerRefs.get(memberId);
+            Ref<EntityStore> memberRef = this.playerRefs.get(memberId);
             if (memberRef == null || !memberRef.isValid()) {
                 if (staleMembers == null) {
-                    staleMembers = new ArrayList<UUID>();
+                    staleMembers = new ArrayList<>();
                 }
                 staleMembers.add(memberId);
                 continue;
             }
             Store<EntityStore> memberStore = memberRef.getStore();
-            if (memberStore == null || !this.isGameplayWorld(memberStore)) {
+            if (memberStore == null) {
                 continue;
             }
             refs.add(memberRef);
@@ -608,9 +661,6 @@ public class MobWaveSpawner {
                 members.remove(staleId);
                 this.playerRefs.remove(staleId);
                 this.ownerByPlayer.remove(staleId, ownerId);
-            }
-            if (members.isEmpty()) {
-                this.playersByOwner.remove(ownerId, members);
             }
         }
         return refs;
@@ -662,7 +712,7 @@ public class MobWaveSpawner {
                     return;
                 }
                 worldStore = playerRef.getStore();
-                if (worldStore == null || !this.isGameplayWorld(worldStore)) {
+                if (worldStore == null) {
                     return;
                 }
                 playerRefComponent = (PlayerRef)worldStore.getComponent(playerRef, PlayerRef.getComponentType());
@@ -670,27 +720,28 @@ public class MobWaveSpawner {
                     return;
                 }
                 UUID playerId = playerRefComponent.getUuid();
-                String worldKey = MobWaveSpawner.getWorldKey(worldStore);
+                String worldKey = WorldUtils.getWorldKey(worldStore);
                 ownerId = MobWaveSpawner.getSharedOwnerId(worldKey);
                 this.playerRefs.put(playerId, playerRef);
                 this.assignPlayerToOwner(playerId, ownerId);
-                synchronized (this.getOwnerLock(ownerId)) {
-                    this.worldByOwner.put(ownerId, worldKey);
-                    this.storeByOwner.put(ownerId, worldStore);
+                OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
+                synchronized (ownerState) {
+                    ownerState.worldKey = worldKey;
+                    ownerState.store = worldStore;
                 }
                 PlayerStateStore stateStore = this.stateStoreManager.getStore(worldKey);
                 this.cancelTask(ownerId);
-                this.waveCounts.put(ownerId, 0);
+                ownerState.waveCount.set(0);
                 stateStore.saveWaveCount(ownerId, 0);
                 stateStore.saveBossId(ownerId, null);
-                this.bossActive.remove(ownerId);
-                this.bossRefs.remove(ownerId);
+                ownerState.bossActive = false;
+                ownerState.bossRef = null;
                 this.despawnTrackedWaveEntities(worldStore);
-                this.rejoinHold.put(ownerId, false);
-                this.rejoinHoldUntilByOwner.remove(ownerId);
+                ownerState.rejoinHold = false;
+                ownerState.rejoinHoldUntil = 0L;
                 long now = System.currentTimeMillis();
                 long nextAt = now + ConfigManager.get().spawnIntervalMs;
-                this.nextSpawnAt.put(ownerId, nextAt);
+                ownerState.nextSpawnAt = nextAt;
                 stateStore.saveNextSpawnAt(ownerId, nextAt);
                 int generation = this.scheduleForOwner(ownerId);
                 this.spawnWave(ownerId, generation);
@@ -701,25 +752,8 @@ public class MobWaveSpawner {
         }
     }
 
-    private static String getWorldKey(@Nonnull Store<EntityStore> store) {
-        String displayName;
-        World world = ((EntityStore)store.getExternalData()).getWorld();
-        if (world == null) {
-            return "default";
-        }
-        if (world.getWorldConfig() != null && world.getWorldConfig().getUuid() != null) {
-            return "world-" + world.getWorldConfig().getUuid().toString();
-        }
-        displayName = world.getWorldConfig() != null ? world.getWorldConfig().getDisplayName() : null;
-        if (displayName != null && !displayName.isBlank()) {
-            return displayName.trim();
-        }
-        String name = world.getName();
-        if (name != null && !name.isBlank()) {
-            return name.trim();
-        }
-        return "default";
-    }
+    // DELETED: getWorldKey() — moved to WorldUtils.getWorldKey() to eliminate
+    // duplication with PlayerProgressionManager's identical copy.
 
     private List<String> getSpawnableRoles() {
         if (this.spawnableRoles.isEmpty()) {
@@ -741,7 +775,11 @@ public class MobWaveSpawner {
     }
 
     private boolean isBossAlive(UUID ownerId, Store<EntityStore> store) {
-        Ref bossRef = (Ref)this.bossRefs.get(ownerId);
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState == null) {
+            return false;
+        }
+        Ref<EntityStore> bossRef = ownerState.bossRef;
         if (bossRef == null || !bossRef.isValid()) {
             return false;
         }
@@ -755,8 +793,18 @@ public class MobWaveSpawner {
     }
 
     @Nonnull
-    private Object getOwnerLock(@Nonnull UUID ownerId) {
-        return this.ownerLocks.computeIfAbsent(ownerId, id -> new Object());
+    private OwnerWaveState getOrCreateOwnerState(@Nonnull UUID ownerId) {
+        return this.ownerStates.computeIfAbsent(ownerId, id -> new OwnerWaveState());
+    }
+
+    @Nullable
+    private OwnerWaveState getOwnerState(@Nonnull UUID ownerId) {
+        return this.ownerStates.get(ownerId);
+    }
+
+    private int getTaskGeneration(@Nonnull UUID ownerId) {
+        OwnerWaveState state = this.ownerStates.get(ownerId);
+        return state != null ? state.taskGeneration.get() : 0;
     }
 
     private void assignPlayerToOwner(@Nonnull UUID playerId, @Nonnull UUID ownerId) {
@@ -764,54 +812,55 @@ public class MobWaveSpawner {
         if (previousOwnerId != null && !previousOwnerId.equals(ownerId) && this.removePlayerFromOwner(previousOwnerId, playerId)) {
             this.clearOwnerRuntimeState(previousOwnerId);
         }
-        synchronized (this.getOwnerLock(ownerId)) {
-            ((Set)this.playersByOwner.computeIfAbsent(ownerId, id -> ConcurrentHashMap.newKeySet())).add(playerId);
-            ((Set)this.participantsByOwner.computeIfAbsent(ownerId, id -> ConcurrentHashMap.newKeySet())).add(playerId);
+        OwnerWaveState ownerState = this.getOrCreateOwnerState(ownerId);
+        // Synchronized to atomically add to both sets — prevents a window where
+        // a player appears in activeMembers but not allParticipants.
+        synchronized (ownerState) {
+            ownerState.activeMembers.add(playerId);
+            ownerState.allParticipants.add(playerId);
         }
     }
 
     private boolean removePlayerFromOwner(@Nonnull UUID ownerId, @Nonnull UUID playerId) {
-        synchronized (this.getOwnerLock(ownerId)) {
-            Set<UUID> members = (Set)this.playersByOwner.get(ownerId);
-            if (members == null) {
-                return true;
-            }
-            members.remove(playerId);
-            if (!members.isEmpty()) {
-                return false;
-            }
-            this.playersByOwner.remove(ownerId, members);
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState == null) {
             return true;
+        }
+        synchronized (ownerState) {
+            ownerState.activeMembers.remove(playerId);
+            return ownerState.activeMembers.isEmpty();
         }
     }
 
+    // BEFORE: 10 lines manually removing ownerId from 9 separate maps inside a
+    //         synchronized block, then removing the lock itself.
+    // AFTER:  2 lines. Remove the state object and everything goes with it.
+    //
+    // THIS is the payoff of grouping state into one object. You can't forget a
+    // map, you can't leave stale entries, and you can't introduce a memory leak
+    // by adding a 12th map and forgetting to update this method.
     private void clearOwnerRuntimeState(@Nonnull UUID ownerId) {
         this.cancelTask(ownerId);
-        synchronized (this.getOwnerLock(ownerId)) {
-            this.waveCounts.remove(ownerId);
-            this.bossActive.remove(ownerId);
-            this.bossRefs.remove(ownerId);
-            this.rejoinHold.remove(ownerId);
-            this.rejoinHoldUntilByOwner.remove(ownerId);
-            this.worldByOwner.remove(ownerId);
-            this.storeByOwner.remove(ownerId);
-            this.nextSpawnAt.remove(ownerId);
-            this.taskGenerationByOwner.remove(ownerId);
-        }
-        this.ownerLocks.remove(ownerId);
+        this.ownerStates.remove(ownerId);
     }
 
     private void resetOwnerProgress(@Nonnull UUID ownerId, @Nullable Store<EntityStore> store) {
-        String worldKey = store != null ? MobWaveSpawner.getWorldKey(store) : null;
+        String worldKey = store != null ? WorldUtils.getWorldKey(store) : null;
         Ref<EntityStore> bossRef = null;
-        Set<UUID> participants;
-        synchronized (this.getOwnerLock(ownerId)) {
-            if (worldKey == null) {
-                worldKey = (String)this.worldByOwner.get(ownerId);
-            }
-            participants = (Set)this.participantsByOwner.remove(ownerId);
-            if (store == null) {
-                bossRef = (Ref)this.bossRefs.get(ownerId);
+        Set<UUID> participants = null;
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState != null) {
+            synchronized (ownerState) {
+                if (worldKey == null) {
+                    worldKey = ownerState.worldKey;
+                }
+                // Snapshot participants before cleanup discards the state.
+                if (!ownerState.allParticipants.isEmpty()) {
+                    participants = new HashSet<>(ownerState.allParticipants);
+                }
+                if (store == null) {
+                    bossRef = ownerState.bossRef;
+                }
             }
         }
         if (worldKey != null && participants != null && !participants.isEmpty()) {
@@ -825,7 +874,9 @@ public class MobWaveSpawner {
             stateStore.saveNextSpawnAt(ownerId, 0L);
             stateStore.saveBossId(ownerId, null);
         }
-        this.nextSpawnAt.put(ownerId, 0L);
+        if (ownerState != null) {
+            ownerState.nextSpawnAt = 0L;
+        }
         if (store == null && bossRef != null && bossRef.isValid()) {
             store = bossRef.getStore();
         }
@@ -857,23 +908,27 @@ public class MobWaveSpawner {
 
     @Nullable
     private Ref<EntityStore> getAnyActivePlayerRef(@Nonnull UUID ownerId) {
-        synchronized (this.getOwnerLock(ownerId)) {
-            Set<UUID> members = (Set)this.playersByOwner.get(ownerId);
-            if (members == null || members.isEmpty()) {
+        OwnerWaveState ownerState = this.getOwnerState(ownerId);
+        if (ownerState == null) {
+            return null;
+        }
+        synchronized (ownerState) {
+            Set<UUID> members = ownerState.activeMembers;
+            if (members.isEmpty()) {
                 return null;
             }
             ArrayList<UUID> staleMembers = null;
             for (UUID memberId : members) {
-                Ref<EntityStore> memberRef = (Ref)this.playerRefs.get(memberId);
+                Ref<EntityStore> memberRef = this.playerRefs.get(memberId);
                 if (memberRef == null || !memberRef.isValid()) {
                     if (staleMembers == null) {
-                        staleMembers = new ArrayList<UUID>();
+                        staleMembers = new ArrayList<>();
                     }
                     staleMembers.add(memberId);
                     continue;
                 }
                 Store<EntityStore> memberStore = memberRef.getStore();
-                if (memberStore == null || !this.isGameplayWorld(memberStore)) {
+                if (memberStore == null) {
                     continue;
                 }
                 if (staleMembers != null) {
@@ -890,9 +945,6 @@ public class MobWaveSpawner {
                     members.remove(staleId);
                     this.playerRefs.remove(staleId);
                     this.ownerByPlayer.remove(staleId, ownerId);
-                }
-                if (members.isEmpty()) {
-                    this.playersByOwner.remove(ownerId, members);
                 }
             }
             return null;
